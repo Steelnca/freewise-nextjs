@@ -1,4 +1,6 @@
-const en = {
+import type { Messages } from './types'
+
+const en: Messages = {
   nav: {
     findWork:   'Find Work',
     findTalent: 'Find Talent',
@@ -99,7 +101,6 @@ const en = {
     dzd:     'DZD',
     days:    'days',
   },
-} as const
+}
 
 export default en
-export type Messages = typeof en

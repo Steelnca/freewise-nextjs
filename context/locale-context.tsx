@@ -1,10 +1,10 @@
-
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import en, { type Messages } from '@/messages/en'
+import en from '@/messages/en'
 import fr from '@/messages/fr'
 import ar from '@/messages/ar'
+import type { Messages } from '@/lib/types'
 
 export type Locale = 'en' | 'fr' | 'ar'
 
