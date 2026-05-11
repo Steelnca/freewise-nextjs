@@ -3,10 +3,11 @@ import axios, { type AxiosError } from 'axios'
 import { tokens } from './auth'
 import type {
   Account, FreelancerProfile, ClientProfile,
-  Job, Offer, Contract, Milestone,
+  Job, Proposal, Contract, Milestone,
   EscrowTransaction, Payout,
   CollabPost, Review, Notification,
   Category, Skill, AuthTokens, AuthUser,
+  Service, ServicePackage, Order,
 } from './types'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -101,15 +102,41 @@ export const jobs = {
   categories: ()                     => api.get<Category[]>('/api/jobs/categories/'),
 }
 
-// ─── Offers ──────────────────────────────────────────────────────────────────
+// ─── Proposals (bids on jobs) ─────────────────────────────────────────────────
 
-export const offers = {
+export const proposals = {
   submit: (jobId: number, data: { cover_letter: string; proposed_price: string; delivery_days: number }) =>
-    api.post<Offer>(`/api/offers/${jobId}/submit/`, data),
-  mine: ()                  => api.get<Offer[]>('/api/offers/mine/'),
-  forJob: (jobId: number)   => api.get<Offer[]>(`/api/offers/job/${jobId}/`),
-  accept: (offerId: number) => api.post(`/api/offers/${offerId}/accept/`),
-  withdraw: (offerId: number) => api.post(`/api/offers/${offerId}/withdraw/`),
+    api.post<Proposal>(`/api/proposals/${jobId}/submit/`, data),
+  mine:     ()                    => api.get<Proposal[]>('/api/proposals/mine/'),
+  forJob:   (jobId: number)       => api.get<Proposal[]>(`/api/proposals/job/${jobId}/`),
+  accept:   (proposalId: number)  => api.post(`/api/proposals/${proposalId}/accept/`),
+  withdraw: (proposalId: number)  => api.post(`/api/proposals/${proposalId}/withdraw/`),
+}
+
+// ─── Services (freelancer gig listings) ──────────────────────────────────────
+
+export const services = {
+  list:   (params?: { search?: string; category?: string }) =>
+    api.get<Service[]>('/api/services/', { params }),
+  mine:   ()                  => api.get<Service[]>('/api/services/mine/'),
+  get:    (id: number)        => api.get<Service>(`/api/services/${id}/`),
+  create: (data: Partial<Service> & { packages: Partial<ServicePackage>[] }) =>
+    api.post<Service>('/api/services/create/', data),
+  update: (id: number, data: Partial<Service>) =>
+    api.put<Service>(`/api/services/${id}/edit/`, data),
+  delete: (id: number)        => api.delete(`/api/services/${id}/`),
+}
+
+// ─── Orders (buying a service) ────────────────────────────────────────────────
+
+export const orders = {
+  create: (serviceId: number, data: { package_id: number; requirements: string }) =>
+    api.post<Order>(`/api/services/${serviceId}/order/`, data),
+  mine:   ()             => api.get<Order[]>('/api/orders/mine/'),
+  get:    (id: number)   => api.get<Order>(`/api/orders/${id}/`),
+  deliver:(id: number)   => api.post(`/api/orders/${id}/deliver/`),
+  approve:(id: number)   => api.post(`/api/orders/${id}/approve/`),
+  dispute:(id: number)   => api.post(`/api/orders/${id}/dispute/`),
 }
 
 // ─── Contracts ───────────────────────────────────────────────────────────────

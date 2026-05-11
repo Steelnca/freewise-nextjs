@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { useMode } from '@/context/mode-context'
 import { useLocale } from '@/context/locale-context'
-import { jobs as jobsApi, offers as offersApi } from '@/lib/api'
+import { jobs as jobsApi, proposals as proposalsApi } from '@/lib/api'
 import type { Job, Category } from '@/lib/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -66,7 +66,7 @@ export default function JobsPage() {
     if (!offerJob) return
     setSubmitting(true)
     try {
-      await offersApi.submit(offerJob.id, {
+      await proposalsApi.submit(offerJob.id, {
         cover_letter:   offer.cover_letter,
         proposed_price: offer.proposed_price,
         delivery_days:  Number(offer.delivery_days),

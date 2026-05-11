@@ -5,8 +5,8 @@ import Link from 'next/link'
 import { motion } from 'motion/react'
 import { useMode } from '@/context/mode-context'
 import { useLocale } from '@/context/locale-context'
-import { jobs as jobsApi, offers as offersApi, contracts as contractsApi, payments, freelancers as freelancersApi } from '@/lib/api'
-import type { Job, Offer, Contract, FreelancerProfile } from '@/lib/types'
+import { jobs as jobsApi, proposals as proposalsApi, contracts as contractsApi, payments, freelancers as freelancersApi } from '@/lib/api'
+import type { Job, Proposal, Contract, FreelancerProfile } from '@/lib/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -46,7 +46,7 @@ export default function DashboardPage() {
   const { t } = useLocale()
 
   const [myJobs,      setMyJobs]      = useState<Job[]>([])
-  const [myOffers,    setMyOffers]    = useState<Offer[]>([])
+  const [myOffers,    setMyOffers]    = useState<Proposal[]>([])
   const [myContracts, setMyContracts] = useState<Contract[]>([])
   const [profile,     setProfile]     = useState<FreelancerProfile | null>(null)
   const [escrowed,    setEscrowed]    = useState(0)
@@ -68,7 +68,7 @@ export default function DashboardPage() {
           )
         }).finally(() => setLoading(false))
     } else {
-      Promise.all([freelancersApi.me(), offersApi.mine(), contractsApi.list()])
+      Promise.all([freelancersApi.me(), proposalsApi.mine(), contractsApi.list()])
         .then(([p, o, c]) => {
           setProfile(p.data)
           setMyOffers(o.data.slice(0, 5))

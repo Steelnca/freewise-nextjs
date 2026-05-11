@@ -19,7 +19,7 @@ import {
 import {
   LayoutDashboardIcon, BriefcaseIcon, FileTextIcon,
   UsersIcon, LogOutIcon, UserIcon, ChevronDownIcon,
-  PlusIcon, WalletIcon,
+  PlusIcon, WalletIcon, StoreIcon,
 } from 'lucide-react'
 import type { Locale } from '@/context/locale-context'
 
@@ -29,17 +29,19 @@ const LOCALE_LABELS: Record<Locale, string> = { en: 'EN', fr: 'FR', ar: 'ع' }
 
 const NAV: Record<DashboardMode, { href: string; label: string; icon: any }[]> = {
   client: [
-    { href: '/dashboard',          label: 'Overview',   icon: LayoutDashboardIcon },
-    { href: '/dashboard/jobs',     label: 'My Jobs',    icon: BriefcaseIcon },
-    { href: '/dashboard/post',     label: 'Post a Job', icon: PlusIcon },
-    { href: '/dashboard/contracts',label: 'Contracts',  icon: FileTextIcon },
+    { href: '/dashboard',           label: 'Overview',    icon: LayoutDashboardIcon },
+    { href: '/dashboard/jobs',      label: 'My Jobs',     icon: BriefcaseIcon },
+    { href: '/dashboard/post',      label: 'Post a Job',  icon: PlusIcon },
+    { href: '/dashboard/services',  label: 'Services',    icon: StoreIcon },
+    { href: '/dashboard/contracts', label: 'Contracts',   icon: FileTextIcon },
   ],
   freelancer: [
-    { href: '/dashboard',          label: 'Overview',   icon: LayoutDashboardIcon },
-    { href: '/dashboard/jobs',     label: 'Browse Jobs',icon: BriefcaseIcon },
-    { href: '/dashboard/offers',   label: 'My Offers',  icon: FileTextIcon },
-    { href: '/dashboard/contracts',label: 'Contracts',  icon: WalletIcon },
-    { href: '/dashboard/profile',  label: 'Profile',    icon: UserIcon },
+    { href: '/dashboard',           label: 'Overview',    icon: LayoutDashboardIcon },
+    { href: '/dashboard/jobs',      label: 'Browse Jobs', icon: BriefcaseIcon },
+    { href: '/dashboard/proposals', label: 'Proposals',   icon: FileTextIcon },
+    { href: '/dashboard/services',  label: 'My Services', icon: StoreIcon },
+    { href: '/dashboard/contracts', label: 'Contracts',   icon: WalletIcon },
+    { href: '/dashboard/profile',   label: 'Profile',     icon: UserIcon },
   ],
 }
 

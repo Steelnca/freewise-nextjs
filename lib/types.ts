@@ -104,22 +104,68 @@ export interface Job {
   created_at:       string
 }
 
-// ─── Offers ──────────────────────────────────────────────────────────────────
+// ─── Proposals (bids on jobs) ─────────────────────────────────────────────────
 
-export type OfferStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN'
+export type ProposalStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN'
 
-export interface Offer {
-  id:                 number
-  job:                number
-  job_title:          string
+export interface Proposal {
+  id:                  number
+  job:                 number
+  job_title:           string
   freelancer_username: string
-  freelancer_slug:    string
-  freelancer_rating:  string
-  cover_letter:       string
-  proposed_price:     string
-  delivery_days:      number
-  status:             OfferStatus
-  created_at:         string
+  freelancer_slug:     string
+  freelancer_rating:   string
+  cover_letter:        string
+  proposed_price:      string
+  delivery_days:       number
+  status:              ProposalStatus
+  created_at:          string
+}
+
+// ─── Services (freelancer gig listings) ──────────────────────────────────────
+
+export type ServiceStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED'
+
+export interface ServicePackage {
+  id:            number
+  title:         string
+  description:   string
+  price:         string
+  delivery_days: number
+  revisions:     number
+}
+
+export interface Service {
+  id:                  number
+  freelancer_username: string
+  freelancer_slug:     string
+  freelancer_rating:   string
+  title:               string
+  description:         string
+  category:            Category | null
+  tags:                Tag[]
+  packages:            ServicePackage[]
+  status:              ServiceStatus
+  created_at:          string
+}
+
+// ─── Orders (client buying a service) ────────────────────────────────────────
+
+export type OrderStatus =
+  | 'PENDING' | 'ACTIVE' | 'DELIVERED'
+  | 'COMPLETED' | 'CANCELLED' | 'DISPUTED'
+
+export interface Order {
+  id:                  number
+  service:             number
+  service_title:       string
+  package:             ServicePackage
+  client_username:     string
+  freelancer_username: string
+  requirements:        string
+  status:              OrderStatus
+  contract_id:         number | null
+  created_at:          string
 }
 
 // ─── Contracts ───────────────────────────────────────────────────────────────
