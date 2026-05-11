@@ -1,7 +1,6 @@
-
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useLocale, type Locale } from '@/context/locale-context'
 import { tokens } from '@/lib/auth'
@@ -14,8 +13,13 @@ const LOCALE_LABELS: Record<Locale, string> = { en: 'EN', fr: 'FR', ar: 'ع' }
 
 export default function Navbar() {
   const { t, locale, setLocale } = useLocale()
-  const [open, setOpen] = useState(false)
-  const loggedIn = tokens.isLoggedIn()
+  const [open, setOpen]         = useState(false)
+  const [loggedIn, setLoggedIn] = useState(false)
+
+  // Check auth only on client to avoid SSR mismatch
+  useEffect(() => {
+    setLoggedIn(tokens.isLoggedIn())
+  }, [])
 
   const links = [
     { href: '/jobs',    label: t.nav.findWork },
