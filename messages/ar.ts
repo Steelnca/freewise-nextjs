@@ -90,6 +90,33 @@ const ar: Messages = {
       withdrawn: 'مسحوب',
     },
   },
+  proposals: {
+    myProposals:   'عروضي على الوظائف',
+    coverLetter:   'رسالة التقديم',
+    proposedPrice: 'سعرك (دج)',
+    deliveryDays:  'أيام التسليم',
+    submit:        'تقديم العرض',
+    withdraw:      'سحب العرض',
+    status: {
+      pending:   'قيد الانتظار',
+      accepted:  'مقبول',
+      rejected:  'مرفوض',
+      withdrawn: 'مسحوب',
+    },
+  },
+  services: {
+    myServices:     'خدماتي',
+    createService:  'إنشاء خدمة',
+    browseServices: 'تصفح الخدمات',
+    startingAt:     'يبدأ من',
+    placeOrder:     'تقديم طلب',
+    requirements:   'المتطلبات',
+    packages: {
+      basic:    'أساسي',
+      standard: 'قياسي',
+      premium:  'مميز',
+    },
+  },
   common: {
     loading: 'جارٍ التحميل...',
     error:   'حدث خطأ ما',

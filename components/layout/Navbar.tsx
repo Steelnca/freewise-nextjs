@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { MenuIcon, XIcon } from 'lucide-react'
 
-const LOCALE_LABELS: Record<Locale, string> = { en: 'EN', fr: 'FR', ar: 'ع' }
+const LOCALE_LABELS: Record<Locale, string> = { en: 'EN', fr: 'FR', ar: 'AR' }
 
 export default function Navbar() {
   const { t, locale, setLocale } = useLocale()

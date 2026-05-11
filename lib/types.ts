@@ -100,7 +100,7 @@ export interface Job {
   budget_max:       string | null
   deadline:         string | null
   status:           JobStatus
-  offer_count:      number
+  proposal_count:      number
   created_at:       string
 }
 

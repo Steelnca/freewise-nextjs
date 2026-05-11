@@ -90,6 +90,33 @@ const fr: Messages = {
       withdrawn: 'Retirée',
     },
   },
+  proposals: {
+    myProposals:   'Mes propositions',
+    coverLetter:   'Lettre de motivation',
+    proposedPrice: 'Votre prix (DZD)',
+    deliveryDays:  'Jours de livraison',
+    submit:        'Soumettre la proposition',
+    withdraw:      'Retirer',
+    status: {
+      pending:   'En attente',
+      accepted:  'Acceptée',
+      rejected:  'Rejetée',
+      withdrawn: 'Retirée',
+    },
+  },
+  services: {
+    myServices:     'Mes services',
+    createService:  'Créer un service',
+    browseServices: 'Parcourir les services',
+    startingAt:     'À partir de',
+    placeOrder:     'Passer commande',
+    requirements:   'Besoins',
+    packages: {
+      basic:    'Basique',
+      standard: 'Standard',
+      premium:  'Premium',
+    },
+  },
   common: {
     loading: 'Chargement...',
     error:   'Une erreur est survenue',

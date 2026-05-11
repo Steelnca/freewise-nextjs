@@ -39,9 +39,9 @@ export default function JobsPage() {
   const [category,   setCategory]   = useState('')
   const [level,      setLevel]      = useState('')
   const [loading,    setLoading]    = useState(true)
-  const [offerJob,   setOfferJob]   = useState<Job | null>(null)
+  const [proposalJob,   setProposalJob]   = useState<Job | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [offer, setOffer] = useState({ cover_letter: '', proposed_price: '', delivery_days: '' })
+  const [proposal, setProposal] = useState({ cover_letter: '', proposed_price: '', delivery_days: '' })
 
   const fetchJobs = () => {
     setLoading(true)
@@ -62,20 +62,20 @@ export default function JobsPage() {
     }
   }, [search, category, level])
 
-  const submitOffer = async () => {
-    if (!offerJob) return
+  const submitProposal = async () => {
+    if (!proposalJob) return
     setSubmitting(true)
     try {
-      await proposalsApi.submit(offerJob.id, {
-        cover_letter:   offer.cover_letter,
-        proposed_price: offer.proposed_price,
-        delivery_days:  Number(offer.delivery_days),
+      await proposalsApi.submit(proposalJob.id, {
+        cover_letter:   proposal.cover_letter,
+        proposed_price: proposal.proposed_price,
+        delivery_days:  Number(proposal.delivery_days),
       })
-      toast.success('Offer submitted!')
-      setOfferJob(null)
-      setOffer({ cover_letter: '', proposed_price: '', delivery_days: '' })
+      toast.success('Proposal submitted!')
+      setProposalJob(null)
+      setProposal({ cover_letter: '', proposed_price: '', delivery_days: '' })
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail ?? 'Failed to submit offer')
+      toast.error(err?.response?.data?.detail ?? 'Failed to submit proposal')
     } finally {
       setSubmitting(false)
     }
@@ -174,19 +174,19 @@ export default function JobsPage() {
                         </span>
                       )}
                       <span className="flex items-center gap-1">
-                        <UsersIcon className="w-3 h-3" />{job.offer_count} {t.jobs.offers}
+                        <UsersIcon className="w-3 h-3" />{job.proposal_count} {t.jobs.proposals}
                       </span>
                       {job.category && <span className="bg-muted px-2 py-0.5 rounded-full">{job.category.name}</span>}
                     </div>
                   </div>
-                  {isClient && job.status === 'OPEN' && job.offer_count > 0 && (
+                  {isClient && job.status === 'OPEN' && job.proposal_count > 0 && (
                     <Button size="sm" variant="outline" asChild>
-                      <Link href={`/dashboard/jobs/${job.id}/offers`}>View offers</Link>
+                      <Link href={`/dashboard/jobs/${job.id}/proposals`}>View proposals</Link>
                     </Button>
                   )}
                   {!isClient && (
-                    <Button size="sm" className="shrink-0" onClick={() => setOfferJob(job)}>
-                      <SendIcon className="w-3 h-3 mr-1.5" />{t.jobs.submitOffer}
+                    <Button size="sm" className="shrink-0" onClick={() => setProposalJob(job)}>
+                      <SendIcon className="w-3 h-3 mr-1.5" />{t.jobs.submitProposal}
                     </Button>
                   )}
                 </div>
@@ -196,19 +196,19 @@ export default function JobsPage() {
         </div>
       )}
 
-      {/* Submit offer dialog */}
-      <Dialog open={!!offerJob} onOpenChange={open => !open && setOfferJob(null)}>
+      {/* Submit proposal dialog */}
+      <Dialog open={!!proposalJob} onOpenChange={open => !open && setProposalJob(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t.jobs.submitOffer}</DialogTitle>
-            {offerJob && <p className="text-sm text-muted-foreground pt-1">{offerJob.title}</p>}
+            <DialogTitle>{t.jobs.submitProposal}</DialogTitle>
+            {proposalJob && <p className="text-sm text-muted-foreground pt-1">{proposalJob.title}</p>}
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>{t.offers.coverLetter}</Label>
+              <Label>{t.proposals.coverLetter}</Label>
               <textarea
-                value={offer.cover_letter}
-                onChange={e => setOffer(p => ({ ...p, cover_letter: e.target.value }))}
+                value={proposal.cover_letter}
+                onChange={e => setProposal(p => ({ ...p, cover_letter: e.target.value }))}
                 placeholder="Introduce yourself and explain why you're the best fit..."
                 rows={5}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
@@ -216,19 +216,19 @@ export default function JobsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>{t.offers.proposedPrice}</Label>
-                <Input type="number" min={0} value={offer.proposed_price} onChange={e => setOffer(p => ({ ...p, proposed_price: e.target.value }))} placeholder="15000" />
+                <Label>{t.proposals.proposedPrice}</Label>
+                <Input type="number" min={0} value={proposal.proposed_price} onChange={e => setProposal(p => ({ ...p, proposed_price: e.target.value }))} placeholder="15000" />
               </div>
               <div className="space-y-2">
-                <Label>{t.offers.deliveryDays}</Label>
-                <Input type="number" min={1} value={offer.delivery_days} onChange={e => setOffer(p => ({ ...p, delivery_days: e.target.value }))} placeholder="7" />
+                <Label>{t.proposals.deliveryDays}</Label>
+                <Input type="number" min={1} value={proposal.delivery_days} onChange={e => setProposal(p => ({ ...p, delivery_days: e.target.value }))} placeholder="7" />
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOfferJob(null)}>{t.common.cancel}</Button>
-            <Button onClick={submitOffer} disabled={submitting || !offer.cover_letter || !offer.proposed_price || !offer.delivery_days}>
-              {submitting ? t.common.loading : t.offers.submit}
+            <Button variant="outline" onClick={() => setProposalJob(null)}>{t.common.cancel}</Button>
+            <Button onClick={submitProposal} disabled={submitting || !proposal.cover_letter || !proposal.proposed_price || !proposal.delivery_days}>
+              {submitting ? t.common.loading : t.proposals.submit}
             </Button>
           </DialogFooter>
         </DialogContent>

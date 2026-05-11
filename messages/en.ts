@@ -90,6 +90,33 @@ const en: Messages = {
       withdrawn: 'Withdrawn',
     },
   },
+  proposals: {
+    myProposals:   'My Proposals',
+    coverLetter:   'Cover Letter',
+    proposedPrice: 'Your Price (DZD)',
+    deliveryDays:  'Delivery Days',
+    submit:        'Submit Proposal',
+    withdraw:      'Withdraw',
+    status: {
+      pending:   'Pending',
+      accepted:  'Accepted',
+      rejected:  'Rejected',
+      withdrawn: 'Withdrawn',
+    },
+  },
+  services: {
+    myServices:     'My Services',
+    createService:  'Create Service',
+    browseServices: 'Browse Services',
+    startingAt:     'Starting at',
+    placeOrder:     'Place Order',
+    requirements:   'Requirements',
+    packages: {
+      basic:    'Basic',
+      standard: 'Standard',
+      premium:  'Premium',
+    },
+  },
   common: {
     loading: 'Loading...',
     error:   'Something went wrong',

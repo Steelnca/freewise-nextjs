@@ -88,6 +88,33 @@ export interface Messages {
       withdrawn: string
     }
   }
+  proposals: {
+    myProposals:   string
+    coverLetter:   string
+    proposedPrice: string
+    deliveryDays:  string
+    submit:        string
+    withdraw:      string
+    status: {
+      pending:   string
+      accepted:  string
+      rejected:  string
+      withdrawn: string
+    }
+  }
+  services: {
+    myServices:   string
+    createService: string
+    browseServices: string
+    startingAt:   string
+    placeOrder:   string
+    requirements: string
+    packages: {
+      basic:    string
+      standard: string
+      premium:  string
+    }
+  }
   common: {
     loading: string
     error:   string
