@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { MenuIcon, XIcon } from 'lucide-react'
 
-const LOCALE_LABELS: Record<Locale, string> = { en: 'EN', fr: 'FR', ar: 'AR' }
+const LOCALE_LABELS: Record<Locale, string> = { en: 'EN', fr: 'FR', ar: 'ع' }
 
 export default function Navbar() {
   const { t, locale, setLocale } = useLocale()
@@ -22,9 +22,9 @@ export default function Navbar() {
   }, [])
 
   const links = [
-    { href: '/jobs',    label: t.nav.findWork },
-    { href: '/talent',  label: t.nav.findTalent },
-    { href: '/collabs', label: t.nav.collabs },
+    { href: '/jobs',     label: t.nav.findWork },
+    { href: '/services', label: t.nav.findTalent },
+    { href: '/collabs',  label: t.nav.collabs },
   ]
 
   return (
