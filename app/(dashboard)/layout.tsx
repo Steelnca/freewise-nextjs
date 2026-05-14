@@ -19,13 +19,12 @@ import {
 import {
   LayoutDashboardIcon, BriefcaseIcon, FileTextIcon,
   UsersIcon, LogOutIcon, UserIcon, ChevronDownIcon,
-  PlusIcon, WalletIcon, StoreIcon,
+  PlusIcon, WalletIcon, StoreIcon, SettingsIcon,
 } from 'lucide-react'
+import NotificationBell from '@/components/dashboard/NotificationBell'
 import type { Locale } from '@/context/locale-context'
 
 const LOCALE_LABELS: Record<Locale, string> = { en: 'EN', fr: 'FR', ar: 'ع' }
-
-// ── Nav config ───────────────────────────────────────────────────────────────
 
 const NAV: Record<DashboardMode, { href: string; label: string; icon: any }[]> = {
   client: [
@@ -44,8 +43,6 @@ const NAV: Record<DashboardMode, { href: string; label: string; icon: any }[]> =
     { href: '/dashboard/profile',   label: 'Profile',     icon: UserIcon },
   ],
 }
-
-// ── Inner layout (has access to ModeContext) ──────────────────────────────────
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { t, locale, setLocale } = useLocale()
@@ -88,17 +85,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex">
-      {/* ── Sidebar ─────────────────────────────────────────────────── */}
       <aside className="w-60 border-r bg-card flex flex-col fixed h-screen z-40">
 
-        {/* Logo */}
-        <div className="px-5 py-4 border-b">
+        {/* Logo + bell */}
+        <div className="px-5 py-4 border-b flex items-center justify-between">
           <Link href="/" className="text-lg font-bold tracking-tight">
             Free<span className="text-blue-500">wise</span>
           </Link>
+          <NotificationBell />
         </div>
 
-        {/* Mode switcher — only shown when user has both roles */}
+        {/* Mode switcher */}
         {account && account.is_client && account.is_freelancer && (
           <div className="px-4 py-3 border-b">
             <div className="flex rounded-lg border overflow-hidden text-xs">
@@ -106,9 +103,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 onClick={() => setMode('client')}
                 className={cn(
                   'flex-1 py-1.5 font-semibold transition-colors',
-                  mode === 'client'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted'
+                  mode === 'client' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
                 )}
               >
                 Client
@@ -117,9 +112,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 onClick={() => setMode('freelancer')}
                 className={cn(
                   'flex-1 py-1.5 font-semibold transition-colors',
-                  mode === 'freelancer'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted'
+                  mode === 'freelancer' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
                 )}
               >
                 Freelancer
@@ -148,23 +141,28 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
           <Separator className="my-2" />
 
-          <Link
-            href="/dashboard/collabs"
-            className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-              pathname.startsWith('/dashboard/collabs')
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            )}
-          >
-            <UsersIcon className="w-4 h-4 shrink-0" />
-            Collabs
-          </Link>
+          {[
+            { href: '/dashboard/collabs',  label: 'Collabs',  icon: UsersIcon,    match: (p: string) => p.startsWith('/dashboard/collabs') },
+            { href: '/dashboard/settings', label: 'Settings', icon: SettingsIcon, match: (p: string) => p === '/dashboard/settings' },
+          ].map(({ href, label, icon: Icon, match }) => (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                match(pathname)
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              {label}
+            </Link>
+          ))}
         </nav>
 
         {/* Bottom */}
         <div className="p-3 border-t space-y-2">
-          {/* Locale switcher */}
           <div className="flex gap-0.5 border rounded-lg p-1">
             {(['en', 'fr', 'ar'] as Locale[]).map(l => (
               <button
@@ -172,9 +170,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                 onClick={() => setLocale(l)}
                 className={cn(
                   'flex-1 py-1 rounded-md text-xs font-bold transition-colors',
-                  l === locale
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
+                  l === locale ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
                 )}
               >
                 {LOCALE_LABELS[l]}
@@ -182,7 +178,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             ))}
           </div>
 
-          {/* User dropdown */}
           {account && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -221,15 +216,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* ── Main ────────────────────────────────────────────────────── */}
       <main className="flex-1 ml-60 min-h-screen bg-muted/30">
         {children}
       </main>
     </div>
   )
 }
-
-// ── Exported layout wraps shell with ModeProvider ────────────────────────────
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
