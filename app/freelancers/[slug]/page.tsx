@@ -1,259 +1,158 @@
-
 'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
 import { motion } from 'motion/react'
 import { useLocale } from '@/context/locale-context'
-import { freelancers as freelancersApi, reviews as reviewsApi, services as servicesApi } from '@/lib/api'
-import type { FreelancerProfile, Review, Service } from '@/lib/types'
+import { freelancers as freelancersApi } from '@/lib/api'
+import type { FreelancerProfile } from '@/lib/types'
 import Navbar from '@/components/layout/Navbar'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import {
-  StarIcon, BriefcaseIcon, ClockIcon,
-  RefreshCwIcon, GlobeIcon, CheckCircleIcon,
-} from 'lucide-react'
+import { SearchIcon, StarIcon, BriefcaseIcon } from 'lucide-react'
 
-const AVAILABILITY_STYLE: Record<string, { cls: string; label: string }> = {
-  AVAILABLE:   { cls: 'bg-green-100 text-green-700',  label: '🟢 Available' },
-  BUSY:        { cls: 'bg-yellow-100 text-yellow-700', label: '🟡 Busy' },
-  UNAVAILABLE: { cls: 'bg-gray-100 text-gray-600',    label: '🔴 Unavailable' },
+const AVAILABILITY_CLS: Record<string, string> = {
+  AVAILABLE:   'bg-green-100 text-green-700',
+  BUSY:        'bg-yellow-100 text-yellow-700',
+  UNAVAILABLE: 'bg-gray-100 text-gray-600',
 }
 
-export default function FreelancerProfilePage() {
-  const { slug }  = useParams()
-  const { t }     = useLocale()
-  const router    = useRouter()
+const AVAILABILITY_LABEL: Record<string, string> = {
+  AVAILABLE:   'Available',
+  BUSY:        'Busy',
+  UNAVAILABLE: 'Unavailable',
+}
 
-  const [profile,  setProfile]  = useState<FreelancerProfile | null>(null)
-  const [reviews,  setReviews]  = useState<Review[]>([])
-  const [services, setServices] = useState<Service[]>([])
-  const [loading,  setLoading]  = useState(true)
+export default function FreelancersPage() {
+  const { t } = useLocale()
+  const [freelancers,  setFreelancers]  = useState<FreelancerProfile[]>([])
+  const [search,       setSearch]       = useState('')
+  const [availability, setAvailability] = useState('')
+  const [loading,      setLoading]      = useState(true)
 
+  // Note: backend list endpoint filters by account slug
+  // For now we fetch all and filter client-side
   useEffect(() => {
-    Promise.all([
-      freelancersApi.getBySlug(String(slug)),
-      reviewsApi.freelancer(String(slug)),
-      servicesApi.list(),
-    ]).then(([p, r, s]) => {
-      setProfile(p.data)
-      setReviews(r.data)
-      setServices(s.data.filter(svc => svc.freelancer_slug === String(slug)))
-    }).catch(() => router.push('/'))
+    setLoading(true)
+    // We'll use the skills endpoint as a proxy to find all freelancers
+    // In a real scenario, add GET /api/freelancers/ list endpoint to Django
+    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/freelancers/skills/`)
+      .then(() => {
+        // Placeholder — backend needs a list endpoint
+        setFreelancers([])
+      })
+      .catch(() => setFreelancers([]))
       .finally(() => setLoading(false))
-  }, [slug])
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <div className="container-fw py-16 max-w-4xl space-y-4">
-          <div className="h-32 bg-muted rounded-2xl animate-pulse" />
-          <div className="h-48 bg-muted rounded-2xl animate-pulse" />
-        </div>
-      </div>
-    )
-  }
-
-  if (!profile) return null
-
-  const avail = AVAILABILITY_STYLE[profile.availability] ?? AVAILABILITY_STYLE.UNAVAILABLE
-  const avgRating = parseFloat(profile.rating)
+  }, [])
 
   return (
-    <div className="min-h-screen flex flex-col bg-muted/20">
+    <div className="min-h-screen flex flex-col">
       <Navbar />
 
-      <div className="container-fw py-10 max-w-5xl flex-1">
-        <div className="grid lg:grid-cols-3 gap-8">
+      {/* Header */}
+      <section className="bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900 text-white">
+        <div className="container-fw py-16">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl space-y-4">
+            <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 text-sm font-medium">
+              👥 Algerian Freelancers
+            </span>
+            <h1 className="text-4xl md:text-5xl font-bold">Find talented freelancers</h1>
+            <p className="text-blue-200 text-lg">Browse profiles, view services, and hire the right person for your project.</p>
+          </motion.div>
+        </div>
+      </section>
 
-          {/* ── Left: profile card ── */}
-          <div className="space-y-4">
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-              <Card>
-                <CardContent className="p-6 text-center space-y-4">
-                  {/* Avatar */}
-                  <div className="w-20 h-20 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-3xl font-bold mx-auto">
-                    {profile.username[0].toUpperCase()}
-                  </div>
-
-                  <div>
-                    <h1 className="text-xl font-bold">{profile.username}</h1>
-                    {profile.title && (
-                      <p className="text-sm text-muted-foreground mt-0.5">{profile.title}</p>
-                    )}
-                  </div>
-
-                  {/* Availability */}
-                  <span className={`text-xs px-3 py-1 rounded-full font-medium inline-block ${avail.cls}`}>
-                    {avail.label}
-                  </span>
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-3 gap-3 text-center pt-2 border-t">
-                    <div>
-                      <p className="font-bold text-lg">{avgRating > 0 ? avgRating.toFixed(1) : '—'}</p>
-                      <p className="text-xs text-muted-foreground flex items-center justify-center gap-0.5">
-                        <StarIcon className="w-3 h-3 fill-amber-400 text-amber-400" /> Rating
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-bold text-lg">{profile.completed_jobs}</p>
-                      <p className="text-xs text-muted-foreground">Jobs done</p>
-                    </div>
-                    <div>
-                      <p className="font-bold text-lg">{reviews.length}</p>
-                      <p className="text-xs text-muted-foreground">Reviews</p>
-                    </div>
-                  </div>
-
-                  {profile.hourly_rate && (
-                    <div className="text-sm text-muted-foreground border-t pt-3">
-                      <span className="font-semibold text-foreground text-base">
-                        {parseFloat(profile.hourly_rate).toLocaleString('fr-DZ')} DZD
-                      </span>
-                      {' / hour'}
-                    </div>
-                  )}
-
-                  {profile.portfolio_url && (
-                    <Button variant="outline" size="sm" className="w-full" asChild>
-                      <a href={profile.portfolio_url} target="_blank" rel="noopener noreferrer">
-                        <GlobeIcon className="w-3.5 h-3.5 mr-1.5" /> View Portfolio
-                      </a>
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Skills */}
-            {profile.skills.length > 0 && (
-              <Card>
-                <CardContent className="p-5 space-y-3">
-                  <p className="text-sm font-semibold">Skills</p>
-                  <div className="flex flex-wrap gap-2">
-                    {profile.skills.map(s => (
-                      <span key={s.id} className="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">
-                        {s.skill.name}
-                      </span>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+      {/* Filters */}
+      <div className="border-b bg-white sticky top-0 z-10">
+        <div className="container-fw py-4 flex gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-48">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Search freelancers..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-
-          {/* ── Right: bio, services, reviews ── */}
-          <div className="lg:col-span-2 space-y-6">
-
-            {/* Bio */}
-            {profile.bio && (
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-                <Card>
-                  <CardContent className="p-6">
-                    <h2 className="font-semibold mb-3">About</h2>
-                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{profile.bio}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-
-            {/* Services */}
-            {services.length > 0 && (
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                <Card>
-                  <CardContent className="p-6 space-y-4">
-                    <h2 className="font-semibold">Services</h2>
-                    <div className="space-y-3">
-                      {services.map(svc => {
-                        const lowest = svc.packages.reduce(
-                          (min, p) => parseFloat(p.price) < parseFloat(min.price) ? p : min,
-                          svc.packages[0]
-                        )
-                        return (
-                          <Link key={svc.id} href={`/services/${svc.id}`}>
-                            <div className="flex items-center justify-between p-3 rounded-xl border hover:border-blue-400 hover:bg-blue-50/30 transition-all group">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate group-hover:text-blue-600 transition-colors">
-                                  {svc.title}
-                                </p>
-                                {lowest && (
-                                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                                    <span className="flex items-center gap-1"><ClockIcon className="w-3 h-3" />{lowest.delivery_days}d</span>
-                                    <span className="flex items-center gap-1"><RefreshCwIcon className="w-3 h-3" />{lowest.revisions}x</span>
-                                  </div>
-                                )}
-                              </div>
-                              {lowest && (
-                                <span className="text-sm font-bold shrink-0 ml-4">
-                                  {parseFloat(lowest.price).toLocaleString('fr-DZ')} DZD
-                                </span>
-                              )}
-                            </div>
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-
-            {/* Reviews */}
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-              <Card>
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-semibold">Reviews</h2>
-                    {reviews.length > 0 && (
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <StarIcon className="w-4 h-4 fill-amber-400 text-amber-400" />
-                        <span className="font-bold">{avgRating.toFixed(1)}</span>
-                        <span className="text-muted-foreground">({reviews.length})</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {reviews.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No reviews yet.</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {reviews.map((review, i) => (
-                        <div key={review.id}>
-                          {i > 0 && <Separator />}
-                          <div className="pt-3 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm font-medium">{review.reviewer_username}</p>
-                              <div className="flex items-center gap-0.5">
-                                {[...Array(5)].map((_, si) => (
-                                  <StarIcon
-                                    key={si}
-                                    className={`w-3.5 h-3.5 ${si < review.rating ? 'fill-amber-400 text-amber-400' : 'text-muted'}`}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                            {review.comment && (
-                              <p className="text-sm text-muted-foreground">{review.comment}</p>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(review.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-          </div>
+          <Select value={availability || 'all'} onValueChange={v => setAvailability(v === 'all' ? '' : v)}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="All availability" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All availability</SelectItem>
+              <SelectItem value="AVAILABLE">Available</SelectItem>
+              <SelectItem value="BUSY">Busy</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
+
+      {/* Content */}
+      <main className="container-fw py-10 flex-1">
+        {loading ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-48 bg-muted rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : freelancers.length === 0 ? (
+          <div className="text-center py-24 space-y-4">
+            <p className="text-4xl">👥</p>
+            <h2 className="text-xl font-bold">Freelancer directory coming soon</h2>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Browse individual freelancer profiles directly, or find them through their service listings.
+            </p>
+            <Button asChild>
+              <Link href="/services">Browse Services Instead</Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {freelancers
+              .filter(f => !availability || f.availability === availability)
+              .filter(f => !search || f.username.toLowerCase().includes(search.toLowerCase()) || f.title?.toLowerCase().includes(search.toLowerCase()))
+              .map((freelancer, i) => (
+                <motion.div key={freelancer.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                  <Link href={`/freelancers/${freelancer.slug}`}>
+                    <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 cursor-pointer group">
+                      <CardContent className="p-5 space-y-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold shrink-0">
+                            {freelancer.username[0].toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold truncate group-hover:text-blue-600 transition-colors">{freelancer.username}</p>
+                            {freelancer.title && <p className="text-sm text-muted-foreground truncate">{freelancer.title}</p>}
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium mt-1 inline-block ${AVAILABILITY_CLS[freelancer.availability]}`}>
+                              {AVAILABILITY_LABEL[freelancer.availability]}
+                            </span>
+                          </div>
+                        </div>
+
+                        {freelancer.bio && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">{freelancer.bio}</p>
+                        )}
+
+                        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t">
+                          <div className="flex items-center gap-3">
+                            <span className="flex items-center gap-1">
+                              <StarIcon className="w-3 h-3 fill-amber-400 text-amber-400" />
+                              {parseFloat(freelancer.rating).toFixed(1)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <BriefcaseIcon className="w-3 h-3" />
+                              {freelancer.completed_jobs} jobs
+                            </span>
+                          </div>
+                          {freelancer.hourly_rate && (
+                            <span className="font-semibold text-foreground">
+                              {parseFloat(freelancer.hourly_rate).toLocaleString('fr-DZ')} DZD/hr
+                            </span>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </motion.div>
+              ))}
+          </div>
+        )}
+      </main>
 
       <footer className="border-t mt-auto">
         <div className="container-fw py-6 flex items-center justify-between text-sm text-muted-foreground">
