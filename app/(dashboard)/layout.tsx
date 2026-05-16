@@ -26,29 +26,30 @@ import type { Locale } from '@/context/locale-context'
 
 const LOCALE_LABELS: Record<Locale, string> = { en: 'EN', fr: 'FR', ar: 'ع' }
 
-const NAV: Record<DashboardMode, { href: string; label: string; icon: any }[]> = {
-  client: [
-    { href: '/dashboard',           label: 'Overview',    icon: LayoutDashboardIcon },
-    { href: '/dashboard/jobs',      label: 'My Jobs',     icon: BriefcaseIcon },
-    { href: '/dashboard/post',      label: 'Post a Job',  icon: PlusIcon },
-    { href: '/dashboard/services',  label: 'Services',    icon: StoreIcon },
-    { href: '/dashboard/contracts', label: 'Contracts',   icon: FileTextIcon },
-  ],
-  freelancer: [
-    { href: '/dashboard',           label: 'Overview',    icon: LayoutDashboardIcon },
-    { href: '/dashboard/jobs',      label: 'Browse Jobs', icon: BriefcaseIcon },
-    { href: '/dashboard/proposals', label: 'Proposals',   icon: FileTextIcon },
-    { href: '/dashboard/services',  label: 'My Services', icon: StoreIcon },
-    { href: '/dashboard/contracts', label: 'Contracts',   icon: WalletIcon },
-    { href: '/dashboard/profile',   label: 'Profile',     icon: UserIcon },
-  ],
-}
-
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { t, locale, setLocale } = useLocale()
   const { mode, setMode, account, setAccount } = useMode()
   const router   = useRouter()
   const pathname = usePathname()
+
+  // NAV defined here so it has access to t
+  const NAV: Record<DashboardMode, { href: string; label: string; icon: any }[]> = {
+    client: [
+      { href: '/dashboard',           label: t.dashboard.overview,   icon: LayoutDashboardIcon },
+      { href: '/dashboard/jobs',      label: t.dashboard.myJobs,     icon: BriefcaseIcon },
+      { href: '/dashboard/post',      label: t.dashboard.postJob,    icon: PlusIcon },
+      { href: '/dashboard/services',  label: t.nav.services,         icon: StoreIcon },
+      { href: '/dashboard/contracts', label: t.dashboard.contracts,  icon: FileTextIcon },
+    ],
+    freelancer: [
+      { href: '/dashboard',           label: t.dashboard.overview,    icon: LayoutDashboardIcon },
+      { href: '/dashboard/jobs',      label: t.dashboard.browseJobs,  icon: BriefcaseIcon },
+      { href: '/dashboard/proposals', label: t.dashboard.myProposals, icon: FileTextIcon },
+      { href: '/dashboard/services',  label: t.dashboard.myServices,  icon: StoreIcon },
+      { href: '/dashboard/contracts', label: t.dashboard.contracts,   icon: WalletIcon },
+      { href: '/dashboard/profile',   label: t.dashboard.profile,     icon: UserIcon },
+    ],
+  }
 
   useEffect(() => {
     if (!tokens.isLoggedIn()) { router.push('/login'); return }
@@ -65,7 +66,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     const refresh = tokens.getRefresh()
     if (refresh) { try { await auth.logout(refresh) } catch {} }
     tokens.clear()
-    toast.success('Logged out')
+    toast.success(t.nav.logout)
     router.push('/')
   }
 
@@ -75,9 +76,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       const r = await auth.me()
       setAccount(r.data)
       setMode(role)
-      toast.success(`${role === 'client' ? 'Client' : 'Freelancer'} role activated!`)
+      toast.success(role === 'client' ? t.dashboard.activateClient : t.dashboard.activateFreelancer)
     } catch {
-      toast.error('Failed to activate role')
+      toast.error(t.common.error)
     }
   }
 
@@ -101,21 +102,19 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             <div className="flex rounded-lg border overflow-hidden text-xs">
               <button
                 onClick={() => setMode('client')}
-                className={cn(
-                  'flex-1 py-1.5 font-semibold transition-colors',
+                className={cn('flex-1 py-1.5 font-semibold transition-colors',
                   mode === 'client' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
                 )}
               >
-                Client
+                {t.dashboard.switchToClient.replace('Switch to ', '')}
               </button>
               <button
                 onClick={() => setMode('freelancer')}
-                className={cn(
-                  'flex-1 py-1.5 font-semibold transition-colors',
+                className={cn('flex-1 py-1.5 font-semibold transition-colors',
                   mode === 'freelancer' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
                 )}
               >
-                Freelancer
+                {t.dashboard.switchToFreelancer.replace('Switch to ', '')}
               </button>
             </div>
           </div>
@@ -142,8 +141,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           <Separator className="my-2" />
 
           {[
-            { href: '/dashboard/collabs',  label: 'Collabs',  icon: UsersIcon,    match: (p: string) => p.startsWith('/dashboard/collabs') },
-            { href: '/dashboard/settings', label: 'Settings', icon: SettingsIcon, match: (p: string) => p === '/dashboard/settings' },
+            { href: '/dashboard/collabs',  label: t.dashboard.collabs,  icon: UsersIcon,    match: (p: string) => p.startsWith('/dashboard/collabs') },
+            { href: '/dashboard/settings', label: t.dashboard.settings, icon: SettingsIcon, match: (p: string) => p === '/dashboard/settings' },
           ].map(({ href, label, icon: Icon, match }) => (
             <Link
               key={href}
@@ -194,7 +193,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="w-52 mb-1">
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/settings">Settings</Link>
+                  <Link href="/dashboard/settings">{t.dashboard.settings}</Link>
                 </DropdownMenuItem>
                 {!account.is_client && (
                   <DropdownMenuItem onClick={() => handleActivateRole('client')}>
