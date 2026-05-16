@@ -1,4 +1,4 @@
-import type { Messages } from '@/lib/types'
+import type { Messages } from '@/messages/types'
 
 const ar: Messages = {
   nav: {
