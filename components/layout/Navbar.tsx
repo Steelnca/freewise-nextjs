@@ -22,9 +22,10 @@ export default function Navbar() {
   }, [])
 
   const links = [
-    { href: '/jobs',     label: t.nav.findWork },
-    { href: '/services', label: t.nav.findTalent },
-    { href: '/collabs',  label: t.nav.collabs },
+    { href: '/jobs',        label: t.nav.findWork },
+    { href: '/services',    label: 'Services' },
+    { href: '/freelancers', label: t.nav.findTalent },
+    { href: '/collabs',     label: t.nav.collabs },
   ]
 
   return (

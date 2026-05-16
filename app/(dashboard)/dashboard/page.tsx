@@ -147,7 +147,7 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium truncate">{job.title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                     <ClockIcon className="w-3 h-3" />
-                    {new Date(job.created_at).toLocaleDateString()} · {job.offer_count} {t.jobs.offers}
+                    {new Date(job.created_at).toLocaleDateString()} · {job.proposal_count} {t.jobs.offers}
                   </p>
                 </div>
                 <StatusBadge label={job.status.replace('_', ' ')} cls={jobStatusCls[job.status]} />

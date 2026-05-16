@@ -1,4 +1,3 @@
-
 import axios, { type AxiosError } from 'axios'
 import { tokens } from './auth'
 import type {
@@ -76,6 +75,8 @@ export const accounts = {
 // ─── Freelancers ─────────────────────────────────────────────────────────────
 
 export const freelancers = {
+  list: (params?: { search?: string; availability?: string }) =>
+    api.get<FreelancerProfile[]>('/api/freelancers/', { params }),
   me: ()                                  => api.get<FreelancerProfile>('/api/freelancers/me/'),
   update: (data: Partial<FreelancerProfile>) => api.put<FreelancerProfile>('/api/freelancers/me/', data),
   getBySlug: (slug: string)               => api.get<FreelancerProfile>(`/api/freelancers/${slug}/`),
