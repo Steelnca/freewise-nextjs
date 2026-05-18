@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -10,6 +10,7 @@ import { useLocale } from '@/context/locale-context'
 import { ModeProvider, useMode, type DashboardMode } from '@/context/mode-context'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -31,6 +32,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const { mode, setMode, account, setAccount } = useMode()
   const router   = useRouter()
   const pathname = usePathname()
+  const [isReady, setIsReady] = useState<boolean>(false)
 
   // NAV defined here so it has access to t
   const NAV: Record<DashboardMode, { href: string; label: string; icon: any }[]> = {
@@ -51,6 +53,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     ],
   }
 
+  // where to add isReady? we need to wait for auth.me before rendering anything, but we also don't want to flash the wrong UI while we're waiting
   useEffect(() => {
     if (!tokens.isLoggedIn()) { router.push('/login'); return }
     auth.me().then(r => {
@@ -60,6 +63,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         if (r.data.is_freelancer && !r.data.is_client) setMode('freelancer')
       }
     }).catch(() => { tokens.clear(); router.push('/login') })
+    .finally(() => setIsReady(true))
   }, [])
 
   const handleLogout = async () => {
@@ -83,6 +87,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   }
 
   const nav = NAV[mode]
+
+  // return skeleton while loading
+  if (!isReady) return <Skeleton />
 
   return (
     <div className="min-h-screen flex">
