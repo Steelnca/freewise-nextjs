@@ -51,13 +51,25 @@ api.interceptors.response.use(
 
 export const auth = {
   register: (data: { username: string; email: string; password: string; password2: string }) =>
-    api.post<{ access: string; refresh: string; user: AuthUser }>('/api/auth/register/', data),
+    api.post<{ detail: string; email: string }>('/api/auth/register/', data),
 
   login: (data: { username: string; password: string }) =>
     api.post<AuthTokens>('/api/auth/login/', data),
 
   logout: (refresh: string) =>
     api.post('/api/auth/logout/', { refresh }),
+
+  verifyEmail: (uidb64: string, token: string) =>
+    api.post<{ detail: string }>('/api/auth/verify-email/', { uidb64, token }),
+
+  resendVerification: () =>
+    api.post<{ detail: string }>('/api/auth/resend-verification/'),
+
+  requestPhoneOTP: () =>
+    api.post<{ detail: string }>('/api/auth/phone/request-otp/'),
+
+  verifyPhone: (code: string) =>
+    api.post<{ detail: string }>('/api/auth/phone/verify/', { code }),
 
   me: () =>
     api.get<Account>('/api/auth/me/'),

@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { auth } from '@/lib/api'
-import { tokens } from '@/lib/auth'
 import { useLocale } from '@/context/locale-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,7 +18,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({
     username: '', email: '', password: '', password2: '',
   })
-  const [errors, setErrors]   = useState<Record<string, string>>({})
+  const [errors,  setErrors]  = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,10 +31,9 @@ export default function RegisterPage() {
     setLoading(true)
     setErrors({})
     try {
-      const { data } = await auth.register(form)
-      tokens.set(data.access, data.refresh)
-      toast.success('Account created successfully!')
-      router.push('/dashboard')
+      await auth.register(form)
+      // No tokens — user must verify email first
+      router.push(`/auth/check-email?email=${encodeURIComponent(form.email)}`)
     } catch (err: any) {
       const data = err?.response?.data ?? {}
       const mapped: Record<string, string> = {}
@@ -49,13 +47,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--sand-50)] p-4">
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-md space-y-6">
-
-        {/* Logo */}
         <div className="text-center">
           <Link href="/" className="text-3xl font-bold tracking-tight">
-            Free<span className="text-[var(--brand-500)]">wise</span>
+            Free<span className="text-blue-500">wise</span>
           </Link>
           <p className="mt-2 text-sm text-muted-foreground">{t.auth.register.subtitle}</p>
         </div>
@@ -75,9 +71,7 @@ export default function RegisterPage() {
                 <div key={id} className="space-y-2">
                   <Label htmlFor={id}>{label}</Label>
                   <Input
-                    id={id}
-                    name={id}
-                    type={type}
+                    id={id} name={id} type={type}
                     value={form[id as keyof typeof form]}
                     onChange={handleChange}
                     autoComplete={auto}
@@ -100,7 +94,7 @@ export default function RegisterPage() {
 
             <p className="text-center text-sm text-muted-foreground mt-6">
               {t.auth.register.haveAccount}{' '}
-              <Link href="/login" className="text-[var(--brand-600)] font-semibold hover:underline">
+              <Link href="/login" className="text-blue-600 font-semibold hover:underline">
                 {t.auth.register.loginLink}
               </Link>
             </p>
