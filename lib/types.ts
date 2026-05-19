@@ -27,6 +27,8 @@ export interface Account {
   theme:         'LIGHT' | 'DARK' | 'DEVICE'
   is_client:     boolean
   is_freelancer: boolean
+  email_verified: boolean
+  phone_verified: boolean
   joined_at:     string
 }
 
