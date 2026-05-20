@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SearchIcon, StarIcon, ClockIcon, RefreshCwIcon } from 'lucide-react'
+import Footer from '@/components/layout/Footer'
 
 export default function ServicesPage() {
   const { t } = useLocale()
@@ -142,12 +143,7 @@ export default function ServicesPage() {
         </div>
       </section>
 
-      <footer className="border-t">
-        <div className="container-fw py-6 flex items-center justify-between text-sm text-muted-foreground">
-          <span className="font-bold text-foreground">Free<span className="text-blue-500">wise</span></span>
-          <span>© {new Date().getFullYear()} Freewise — Algeria & beyond</span>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

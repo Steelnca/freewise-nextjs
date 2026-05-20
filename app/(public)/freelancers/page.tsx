@@ -16,6 +16,7 @@ import {
   SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { SearchIcon, StarIcon, BriefcaseIcon, CheckCircleIcon } from 'lucide-react'
+import Footer from '@/components/layout/Footer'
 
 const AVAILABILITY_BADGE: Record<string, { cls: string; label: string }> = {
   AVAILABLE:   { cls: 'bg-green-100 text-green-700',  label: 'Available' },
@@ -203,12 +204,7 @@ export default function FreelancersPage() {
         )}
       </main>
 
-      <footer className="border-t mt-auto">
-        <div className="container-fw py-6 flex items-center justify-between text-sm text-muted-foreground">
-          <span className="font-bold text-foreground">Free<span className="text-blue-500">wise</span></span>
-          <span>© {new Date().getFullYear()} Freewise — Algeria & beyond</span>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }
