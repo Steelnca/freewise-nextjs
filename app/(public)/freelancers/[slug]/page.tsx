@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { SearchIcon, StarIcon, BriefcaseIcon } from 'lucide-react'
+import Footer from '@/components/layout/Footer'
 
 const AVAILABILITY_CLS: Record<string, string> = {
   AVAILABLE:   'bg-green-100 text-green-700',
@@ -154,12 +155,7 @@ export default function FreelancersPage() {
         )}
       </main>
 
-      <footer className="border-t mt-auto">
-        <div className="container-fw py-6 flex items-center justify-between text-sm text-muted-foreground">
-          <span className="font-bold text-foreground">Free<span className="text-blue-500">wise</span></span>
-          <span>© {new Date().getFullYear()} Freewise</span>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }
