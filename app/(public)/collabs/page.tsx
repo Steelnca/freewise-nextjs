@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SearchIcon, UsersIcon, CalendarIcon } from 'lucide-react'
+import Footer from '@/components/layout/Footer'
 
 export default function PublicCollabsPage() {
   const { t } = useLocale()
@@ -141,12 +142,7 @@ export default function PublicCollabsPage() {
         )}
       </main>
 
-      <footer className="border-t mt-auto">
-        <div className="container-fw py-6 flex items-center justify-between text-sm text-muted-foreground">
-          <span className="font-bold text-foreground">Free<span className="text-blue-500">wise</span></span>
-          <span>© {new Date().getFullYear()} Freewise</span>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }
