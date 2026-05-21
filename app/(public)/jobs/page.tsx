@@ -6,13 +6,11 @@ import { motion } from 'motion/react'
 import { useLocale } from '@/context/locale-context'
 import { jobs as jobsApi } from '@/lib/api'
 import type { Job, Category } from '@/lib/types'
-import Navbar from '@/components/layout/Navbar'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SearchIcon, CalendarIcon, UsersIcon, DollarSignIcon } from 'lucide-react'
-import Footer from '@/components/layout/Footer'
 
 const LEVEL_CLS: Record<string, string> = {
   ENTRY:  'bg-green-100 text-green-700',
@@ -47,9 +45,7 @@ export default function JobsPage() {
   }, [search, category, level])
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-
+    <div>
       {/* Header */}
       <section className="bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900 text-white">
         <div className="container-fw py-16">
@@ -156,8 +152,6 @@ export default function JobsPage() {
           </>
         )}
       </main>
-
-    <Footer />
     </div>
   )
 }

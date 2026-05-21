@@ -14,11 +14,14 @@ const LOCALE_LABELS: Record<Locale, string> = { en: 'EN', fr: 'FR', ar: 'ع' }
 export default function Navbar() {
   const { t, locale, setLocale } = useLocale()
   const [open, setOpen]         = useState(false)
+  const [authLoading, setAuthLoading] = useState(false)
   const [loggedIn, setLoggedIn] = useState(false)
 
   // Check auth only on client to avoid SSR mismatch
   useEffect(() => {
+    setAuthLoading(true)
     setLoggedIn(tokens.isLoggedIn())
+    setAuthLoading(false)
   }, [])
 
   const links = [
@@ -70,7 +73,9 @@ export default function Navbar() {
             ))}
           </div>
 
-          {loggedIn ? (
+          {/* Auth buttons */}
+          {authLoading
+          ? (loggedIn ? (
             <Button size="sm" asChild>
               <Link href="/dashboard">{t.nav.dashboard}</Link>
             </Button>
@@ -83,7 +88,16 @@ export default function Navbar() {
                 <Link href="/register">{t.nav.register}</Link>
               </Button>
             </>
+          ))
+
+          : (
+
+            <>
+              <Button size="sm" variant="outline" className="w-14 h-8 animate-pulse cursor-pointer" />
+              <Button size="sm" variant="outline" className="w-14 h-8 animate-pulse cursor-pointer" />
+            </>
           )}
+
         </div>
 
         {/* Mobile toggle */}

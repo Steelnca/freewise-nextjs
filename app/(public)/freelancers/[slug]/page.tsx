@@ -6,13 +6,11 @@ import { motion } from 'motion/react'
 import { useLocale } from '@/context/locale-context'
 import { freelancers as freelancersApi } from '@/lib/api'
 import type { FreelancerProfile } from '@/lib/types'
-import Navbar from '@/components/layout/Navbar'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { SearchIcon, StarIcon, BriefcaseIcon } from 'lucide-react'
-import Footer from '@/components/layout/Footer'
 
 const AVAILABILITY_CLS: Record<string, string> = {
   AVAILABLE:   'bg-green-100 text-green-700',
@@ -49,9 +47,7 @@ export default function FreelancersPage() {
   }, [])
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-
+    <div>
       {/* Header */}
       <section className="bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900 text-white">
         <div className="container-fw py-16">
@@ -154,8 +150,6 @@ export default function FreelancersPage() {
           </div>
         )}
       </main>
-
-      <Footer />
     </div>
   )
 }

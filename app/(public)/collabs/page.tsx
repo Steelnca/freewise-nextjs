@@ -7,12 +7,10 @@ import { motion } from 'motion/react'
 import { useLocale } from '@/context/locale-context'
 import { collabs as collabsApi } from '@/lib/api'
 import type { CollabPost } from '@/lib/types'
-import Navbar from '@/components/layout/Navbar'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SearchIcon, UsersIcon, CalendarIcon } from 'lucide-react'
-import Footer from '@/components/layout/Footer'
 
 export default function PublicCollabsPage() {
   const { t } = useLocale()
@@ -36,9 +34,7 @@ export default function PublicCollabsPage() {
   }, [search])
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-
+    <div>
       {/* Header */}
       <section className="bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900 text-white">
         <div className="container-fw py-16">
@@ -141,8 +137,6 @@ export default function PublicCollabsPage() {
           </>
         )}
       </main>
-
-      <Footer />
     </div>
   )
 }

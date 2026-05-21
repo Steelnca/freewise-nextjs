@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { motion } from 'motion/react'
 import { useLocale } from '@/context/locale-context'
-import Navbar from '@/components/layout/Navbar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ArrowRightIcon, ShieldCheckIcon, ZapIcon, UsersIcon, StarIcon } from 'lucide-react'
@@ -31,8 +30,7 @@ export default function HomePage() {
   ]
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
+    <div>
 
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900">
@@ -126,14 +124,6 @@ export default function HomePage() {
           <Button size="lg" variant="outline" asChild><Link href="/jobs">{t.nav.findWork}</Link></Button>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="border-t mt-auto">
-        <div className="container-fw py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <span className="font-bold text-foreground">Free<span className="text-blue-500">wise</span></span>
-          <span>© {new Date().getFullYear()} Freewise — Algeria & beyond</span>
-        </div>
-      </footer>
     </div>
   )
 }

@@ -41,8 +41,7 @@ export default function ServicesPage() {
   }, [search, category])
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
+    <div>
 
       {/* Header */}
       <section className="bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900 text-white">
@@ -142,8 +141,6 @@ export default function ServicesPage() {
           </Button>
         </div>
       </section>
-
-      <Footer />
     </div>
   )
 }

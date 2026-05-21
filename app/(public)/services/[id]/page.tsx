@@ -10,7 +10,6 @@ import { useLocale } from '@/context/locale-context'
 import { tokens } from '@/lib/auth'
 import { services as servicesApi, orders as ordersApi } from '@/lib/api'
 import type { Service } from '@/lib/types'
-import Navbar from '@/components/layout/Navbar'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -65,7 +64,6 @@ export default function ServiceDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Navbar />
         <div className="container-fw py-16">
           <div className="space-y-4 max-w-3xl">
             <div className="h-8 bg-muted rounded-lg animate-pulse w-3/4" />
@@ -82,8 +80,7 @@ export default function ServiceDetailPage() {
   const selectedPackage = service.packages[selectedPkg]
 
   return (
-    <div className="min-h-screen flex flex-col bg-muted/20">
-      <Navbar />
+    <div className="bg-muted/20">
 
       <div className="container-fw py-8 flex-1">
         <Button variant="ghost" size="sm" className="mb-6" asChild>

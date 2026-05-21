@@ -1,8 +1,6 @@
 
 import Link from 'next/link'
-import { useLocale } from '@/context/locale-context'
 
-// Server component — no 'use client' needed for simple footer
 export default function Footer() {
   return (
     <footer className="border-t">
@@ -10,7 +8,7 @@ export default function Footer() {
         <Link href="/" className="font-bold text-foreground">
           Free<span className="text-blue-500">wise</span>
         </Link>
-        <span>© {new Date().getFullYear()} Freewise — Algeria & beyond</span>
+        <span>© {new Date().getFullYear()} Freewise</span>
       </div>
     </footer>
   )
