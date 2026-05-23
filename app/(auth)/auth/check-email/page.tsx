@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
@@ -14,18 +13,52 @@ import { MailIcon, RefreshCwIcon } from 'lucide-react'
 export default function CheckEmailPage() {
   const { t }         = useLocale()
   const searchParams  = useSearchParams()
-  const email         = searchParams.get('email') ?? ''
+  const COOLDOWN = 60 // email resent cooldown in seconds
   const [resending, setResending] = useState(false)
   const [resent,    setResent]    = useState(false)
+  const [secondsLeft, setSecondsLeft] = useState(COOLDOWN)
+
+  const email = decodeURIComponent(searchParams.get('email') || "")
+
+  useEffect(() => {
+    if (secondsLeft <= 0) {
+      // cooldown finished
+      setSecondsLeft(0)
+      return
+    }
+    const id = setInterval(() => setSecondsLeft((s) => s - 1), 1000)
+    return () => clearInterval(id)
+  }, [secondsLeft])
+
+  useEffect(() => {
+    if (secondsLeft === 0 && resent) {
+      // allow UI to show success but clear resent flag if you prefer the button-only behaviour
+      // setResent(false)
+    }
+  }, [secondsLeft, resent])
 
   const handleResend = async () => {
+    if (!email) {
+      toast.error('No email provided to resend verification.')
+      return
+    }
+
+    // Prevent manual spam if cooldown active
+    if (secondsLeft > 0) return
+
     setResending(true)
     try {
-      await auth.resendVerification()
+      // save response into const to show backend message if needed
+      const response = await auth.resendVerification(email)
       setResent(true)
-      toast.success('Verification email resent!')
-    } catch {
-      toast.error('Could not resend. Please try logging in first.')
+      setSecondsLeft(COOLDOWN)
+      // i wanna show the backend success message
+      toast.success(response.data.detail || 'Verification email resent successfully. Please check your inbox.')
+    } catch (err) {
+      const errorMessage =
+        (err as any)?.response?.data?.detail ??
+        'Failed to resend verification email. Please try again later.'
+      toast.error(errorMessage)
     } finally {
       setResending(false)
     }
@@ -66,21 +99,19 @@ export default function CheckEmailPage() {
               </ul>
             </div>
 
-            {!resent ? (
-              <Button
-                variant="outline"
-                className="w-full"
-                disabled={resending}
-                onClick={handleResend}
-              >
-                <RefreshCwIcon className={`w-4 h-4 mr-2 ${resending ? 'animate-spin' : ''}`} />
-                {resending ? t.common.loading : 'Resend verification email'}
-              </Button>
-            ) : (
-              <p className="text-sm text-green-600 font-medium">
-                ✓ Verification email resent successfully
-              </p>
-            )}
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={resending || secondsLeft > 0}
+              onClick={handleResend}
+            >
+              <RefreshCwIcon className={`w-4 h-4 mr-2 ${resending ? 'animate-spin' : ''}`} />
+              {resending
+                ? t.common.loading
+                : secondsLeft > 0
+                ? `Resend available in ${secondsLeft}s`
+                : 'Resend verification email'}
+            </Button>
 
             <p className="text-sm text-muted-foreground">
               Already verified?{' '}

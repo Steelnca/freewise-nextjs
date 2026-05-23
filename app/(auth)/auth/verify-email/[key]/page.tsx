@@ -10,11 +10,13 @@ import { Button } from '@/components/ui/button'
 import { CheckCircleIcon, XCircleIcon, Loader2Icon } from 'lucide-react'
 
 export default function VerifyEmailPage() {
-  const { key } = useParams<{ key: string }>()
+  const params = useParams<{ key: string }>()
   const { t } = useLocale()
 
   const [state, setState] = useState('loading')
   const [message, setMessage] = useState('')
+
+  const key = decodeURIComponent(params.key || "")
 
   useEffect(() => {
     auth.verifyEmail(key)

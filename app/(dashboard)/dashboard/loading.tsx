@@ -2,7 +2,7 @@
 'use client';
 
 import { Card, CardContent } from '@/components/ui/card'
-import { XCircleIcon } from 'lucide-react'
+import { LoaderIcon } from 'lucide-react'
 
 export default function DashboardLoadingPage() {
   return (
@@ -10,7 +10,7 @@ export default function DashboardLoadingPage() {
       <div className="w-full max-w-md space-y-6">
         <Card>
           <CardContent className="flex items-center space-x-4">
-            <XCircleIcon className="h-6 w-6 text-red-500" />
+            <LoaderIcon className="h-6 w-6 text-primary" />
             <div>
               <h2 className="font-semibold">Loading...</h2>
               <p className="text-sm text-muted-foreground">

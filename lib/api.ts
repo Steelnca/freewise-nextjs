@@ -62,8 +62,8 @@ export const auth = {
   verifyEmail: (key: string) =>
     api.post<{ detail: string }>('/api/auth/verify-email/', { key }),
 
-  resendVerification: () =>
-    api.post<{ detail: string }>('/api/auth/resend-verification/'),
+  resendVerification: (email: string) =>
+    api.post<{ detail: string }>('/api/auth/resend-verification/', { email }),
 
   requestPhoneOTP: () =>
     api.post<{ detail: string }>('/api/auth/phone/request-otp/'),
