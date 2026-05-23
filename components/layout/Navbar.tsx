@@ -74,7 +74,7 @@ export default function Navbar() {
           </div>
 
           {/* Auth buttons */}
-          {authLoading
+          {!authLoading
           ? (loggedIn ? (
             <Button size="sm" asChild>
               <Link href="/dashboard">{t.nav.dashboard}</Link>

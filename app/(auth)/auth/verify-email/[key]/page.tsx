@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -9,21 +9,17 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircleIcon, XCircleIcon, Loader2Icon } from 'lucide-react'
 
-type State = 'loading' | 'success' | 'error'
-
 export default function VerifyEmailPage() {
-  const { uidb64, token } = useParams<{ uidb64: string; token: string }>()
-  const { t }   = useLocale()
-  const router  = useRouter()
+  const { key } = useParams<{ key: string }>()
+  const { t } = useLocale()
 
-  const [state,   setState]   = useState<State>('loading')
+  const [state, setState] = useState('loading')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    auth.verifyEmail(uidb64, token)
+    auth.verifyEmail(key)
       .then(() => {
         setState('success')
-        setTimeout(() => router.push('/login'), 3000)
       })
       .catch(err => {
         setState('error')
@@ -32,9 +28,9 @@ export default function VerifyEmailPage() {
           'This link is invalid or has expired.'
         )
       })
-  }, [uidb64, token])
+  }, [key])
 
-  return (
+return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-md space-y-6">
 

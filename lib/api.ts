@@ -59,8 +59,8 @@ export const auth = {
   logout: (refresh: string) =>
     api.post('/api/auth/logout/', { refresh }),
 
-  verifyEmail: (uidb64: string, token: string) =>
-    api.post<{ detail: string }>('/api/auth/verify-email/', { uidb64, token }),
+  verifyEmail: (key: string) =>
+    api.post<{ detail: string }>('/api/auth/verify-email/', { key }),
 
   resendVerification: () =>
     api.post<{ detail: string }>('/api/auth/resend-verification/'),

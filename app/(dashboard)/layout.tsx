@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import NotificationBell from '@/components/dashboard/NotificationBell'
 import type { Locale } from '@/context/locale-context'
+import DashboardLoadingPage from './dashboard/loading'
 
 const LOCALE_LABELS: Record<Locale, string> = { en: 'EN', fr: 'FR', ar: 'ع' }
 
@@ -89,7 +90,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const nav = NAV[mode]
 
   // return skeleton while loading
-  if (!isReady) return <Skeleton />
+  if (!isReady) return <DashboardLoadingPage />
 
   return (
     <div className="min-h-screen flex">
