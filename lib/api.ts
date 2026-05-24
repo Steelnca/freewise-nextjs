@@ -85,13 +85,16 @@ export const auth = {
     new_password1: string,
     new_password2: string
   ) =>
-    api.post<{ detail: string }>('/api/auth/change-password/',
+    api.post<{ detail: string }>('/api/auth/security/change-password/',
       {
         current_password,
         new_password1,
         new_password2,
       }
     ),
+
+  authenticatedForgotPassword: () =>
+    api.post<{ detail: string }>('/api/auth/security/forgot-password/'),
 }
 
 // ─── Accounts ────────────────────────────────────────────────────────────────

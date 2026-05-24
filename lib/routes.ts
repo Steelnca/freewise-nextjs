@@ -28,9 +28,13 @@ export const ROUTES = {
     settings: {
       root: "/dashboard/settings",
       profile: "/dashboard/settings/profile",
-      changePassword: "/dashboard/settings/change-password",
       billing: "/dashboard/settings/billing",
       notifications: "/dashboard/settings/notifications",
+      security: {
+        root: "/dashboard/settings/security",
+        changePassword: "/dashboard/settings/security/change-password",
+        forgotPassword: "/dashboard/settings/security/forgot-password",
+      },
     },
   },
 

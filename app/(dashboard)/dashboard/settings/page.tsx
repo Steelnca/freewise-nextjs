@@ -79,7 +79,7 @@ export default function SettingsPage() {
   const handleForgotPassword = () => {
     // For simplicity, we'll just redirect to a forgot password page.
     // In a real app, you might want to handle this in a modal or separate component.
-    window.location.href = ROUTES.auth.forgotPassword
+    window.location.href = ROUTES.dashboard.settings.security.forgotPassword
     return
     // setShowForgotPassword(true)
     // <ForgotPasswordModal open={showForgotPassword} onClose={() => setShowForgotPassword(false)} />
@@ -88,7 +88,7 @@ export default function SettingsPage() {
   const handleChangePassword = () => {
     // For simplicity, we'll just redirect to a change password page.
     // In a real app, you might want to handle this in a modal or separate component.
-    window.location.href = ROUTES.dashboard.settings.changePassword
+    window.location.href = ROUTES.dashboard.settings.security.changePassword
     return
     // setShowChangePassword(true)
     // <ChangePasswordModal open={showChangePassword} onClose={() => setShowChangePassword(false)} />
