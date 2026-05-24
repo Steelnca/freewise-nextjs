@@ -73,6 +73,25 @@ export const auth = {
 
   me: () =>
     api.get<Account>('/api/auth/me/'),
+
+  forgotPassword: (email: string) =>
+    api.post<{ detail: string }>('/api/auth/forgot-password/', { email }),
+
+  resetPassword: (key: string, password1: string, password2: string) =>
+    api.post<{ detail: string }>('/api/auth/reset-password/', { key, password1, password2 }),
+
+  changePassword: (
+    current_password: string,
+    new_password1: string,
+    new_password2: string
+  ) =>
+    api.post<{ detail: string }>('/api/auth/change-password/',
+      {
+        current_password,
+        new_password1,
+        new_password2,
+      }
+    ),
 }
 
 // ─── Accounts ────────────────────────────────────────────────────────────────

@@ -25,6 +25,7 @@ import {
 import NotificationBell from '@/components/dashboard/NotificationBell'
 import type { Locale } from '@/context/locale-context'
 import DashboardLoadingPage from './dashboard/loading'
+import { ROUTES } from '@/lib/routes'
 
 const LOCALE_LABELS: Record<Locale, string> = { en: 'EN', fr: 'FR', ar: 'ع' }
 
@@ -149,8 +150,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           <Separator className="my-2" />
 
           {[
-            { href: '/dashboard/collabs',  label: t.dashboard.collabs,  icon: UsersIcon,    match: (p: string) => p.startsWith('/dashboard/collabs') },
-            { href: '/dashboard/settings', label: t.dashboard.settings, icon: SettingsIcon, match: (p: string) => p === '/dashboard/settings' },
+            { href: ROUTES.dashboard.collabs,  label: t.dashboard.collabs,  icon: UsersIcon,    match: (p: string) => p.startsWith('/dashboard/collabs') },
+            { href: ROUTES.dashboard.settings.root, label: t.dashboard.settings, icon: SettingsIcon, match: (p: string) => p === '/dashboard/settings' },
           ].map(({ href, label, icon: Icon, match }) => (
             <Link
               key={href}
@@ -201,7 +202,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="w-52 mb-1">
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/settings">{t.dashboard.settings}</Link>
+                  <Link href={ROUTES.dashboard.settings.root}>{t.dashboard.settings}</Link>
                 </DropdownMenuItem>
                 {!account.is_client && (
                   <DropdownMenuItem onClick={() => handleActivateRole('client')}>

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { ROUTES } from '@/lib/routes'
 
 export default function LoginPage() {
   const { t } = useLocale()
@@ -33,7 +34,7 @@ export default function LoginPage() {
       const { data } = await auth.login(form)
       tokens.set(data.access, data.refresh)
       toast.success('Logged in successfully')
-      router.push('/dashboard')
+      router.push(ROUTES.dashboard.root)
     } catch (err: any) {
       const detail = err?.response?.data?.detail
       setErrors({ general: detail ?? 'Invalid credentials.' })
@@ -98,9 +99,13 @@ export default function LoginPage() {
               </Button>
             </form>
 
+            <Link href={ROUTES.auth.forgotPassword} className="text-sm text-muted-foreground hover:underline">
+              {t.auth.login.forgotPasswordLink}
+            </Link>
+
             <p className="text-center text-sm text-muted-foreground mt-6">
               {t.auth.login.noAccount}{' '}
-              <Link href="/register" className="text-[var(--brand-600)] font-semibold hover:underline">
+              <Link href={ROUTES.auth.register} className="text-[var(--brand-600)] font-semibold hover:underline">
                 {t.auth.login.registerLink}
               </Link>
             </p>

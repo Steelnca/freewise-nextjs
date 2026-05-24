@@ -7,14 +7,15 @@ import { useMode } from '@/context/mode-context'
 import { useLocale, type Locale } from '@/context/locale-context'
 import { accounts as accountsApi, auth as authApi } from '@/lib/api'
 import { tokens } from '@/lib/auth'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { CheckCircleIcon, ShieldIcon, GlobeIcon } from 'lucide-react'
+import { CheckCircleIcon, ShieldIcon, GlobeIcon, Link } from 'lucide-react'
+import { ROUTES } from '@/lib/routes'
 
 const LOCALE_LABELS: Record<Locale, string> = {
   en: 'English', fr: 'Français', ar: 'العربية',
@@ -73,6 +74,24 @@ export default function SettingsPage() {
     } finally {
       setActivating(null)
     }
+  }
+
+  const handleForgotPassword = () => {
+    // For simplicity, we'll just redirect to a forgot password page.
+    // In a real app, you might want to handle this in a modal or separate component.
+    window.location.href = ROUTES.auth.forgotPassword
+    return
+    // setShowForgotPassword(true)
+    // <ForgotPasswordModal open={showForgotPassword} onClose={() => setShowForgotPassword(false)} />
+  }
+
+  const handleChangePassword = () => {
+    // For simplicity, we'll just redirect to a change password page.
+    // In a real app, you might want to handle this in a modal or separate component.
+    window.location.href = ROUTES.dashboard.settings.changePassword
+    return
+    // setShowChangePassword(true)
+    // <ChangePasswordModal open={showChangePassword} onClose={() => setShowChangePassword(false)} />
   }
 
   if (!account) return null
@@ -221,11 +240,53 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldIcon className="w-4 h-4" /> Account Security
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Manage your account security settings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {[
+            { key: 'forgot-password' as const,     label: 'Forgot Password',     description: 'Reset your password if you forgot it.' },
+            { key: 'change-password' as const, label: 'Change Password', description: 'Update your account password to a new one.' },
+
+          ].map(({ key, label, description }) => {
+            return (
+              <div key={key} className="flex items-center justify-between gap-4 p-4 rounded-xl border">
+                <div>
+                  <p className="font-medium text-sm">{label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    if (key === 'forgot-password') {
+                      handleForgotPassword()
+                    } else {
+                      handleChangePassword()
+                    }
+                  }}
+                >
+                  {key === 'forgot-password' ? 'Reset Password' : 'Update Password'}
+                </Button>
+
+              </div>
+            )
+          })}
+        </CardContent>
+      </Card>
+
       {/* Danger zone */}
       <Card className="border-destructive/30">
         <CardHeader>
           <CardTitle className="text-base text-destructive">Danger Zone</CardTitle>
         </CardHeader>
+
         <CardContent>
           <div className="flex items-center justify-between gap-4">
             <div>
