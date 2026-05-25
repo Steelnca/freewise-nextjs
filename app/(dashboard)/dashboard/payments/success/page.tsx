@@ -6,12 +6,13 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'motion/react'
 import { CheckCircleIcon, ArrowRightIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ROUTES } from '@/lib/routes'
 
 export default function PaymentSuccessPage() {
   const router = useRouter()
 
   useEffect(() => {
-    const t = setTimeout(() => router.push('/dashboard/contracts'), 5000)
+    const t = setTimeout(() => router.push(ROUTES.dashboard.contracts), 5000)
     return () => clearTimeout(t)
   }, [])
 
@@ -49,12 +50,12 @@ export default function PaymentSuccessPage() {
 
         <div className="flex flex-col gap-3">
           <Button asChild>
-            <Link href="/dashboard/contracts">
+            <Link href={ROUTES.dashboard.contracts}>
               View Contract <ArrowRightIcon className="w-4 h-4 ml-2" />
             </Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/dashboard">Back to Dashboard</Link>
+            <Link href={ROUTES.dashboard.root}>Back to Dashboard</Link>
           </Button>
         </div>
 

@@ -2,10 +2,10 @@ import axios, { type AxiosError } from 'axios'
 import { tokens } from './auth'
 import type {
   Account, FreelancerProfile, ClientProfile,
-  Job, Proposal, Contract, Milestone,
-  EscrowTransaction, Payout,
+  Job, Proposal, Contract, Wallet, WalletTransaction,
+  EscrowHold, Payout,
   CollabPost, Review, Notification,
-  Category, Skill, AuthTokens, AuthUser,
+  Category, Skill, AuthTokens,
   Service, ServicePackage, Order,
 } from './types'
 
@@ -186,11 +186,26 @@ export const contracts = {
 
 // ─── Payments ────────────────────────────────────────────────────────────────
 
+// lib/api.ts
 export const payments = {
-  fundMilestone: (milestoneId: number) =>
-    api.post<{ checkout_url: string; escrow_id: number }>(`/api/payments/fund/${milestoneId}/`),
+  wallet: () => api.get<Wallet>('/api/payments/wallet/'),
+  transactions: () => api.get<WalletTransaction[]>('/api/payments/transactions/'),
+  escrow: () => api.get<EscrowHold[]>('/api/payments/escrow/'),
   payouts: () => api.get<Payout[]>('/api/payments/payouts/'),
-  escrow:  () => api.get<EscrowTransaction[]>('/api/payments/escrow/'),
+  requestPayout: (data: {
+    amount: string
+    idempotency_key: string
+    provider_name?: string
+    provider_reference?: string
+    destination_type?: string
+    destination_label?: string
+    description?: string
+    metadata?: Record<string, unknown>
+  }) => api.post<Payout>('/api/payments/payouts/request/', data),
+  fundMilestone: (milestoneId: number) =>
+    api.post<{ checkout_url: string; checkout_id: string; milestone_id: number; amount: string; currency: string }>(
+      `/api/payments/fund/${milestoneId}/`
+    ),
 }
 
 // ─── Collabs ─────────────────────────────────────────────────────────────────

@@ -205,30 +205,79 @@ export interface Contract {
 
 // ─── Payments ────────────────────────────────────────────────────────────────
 
-export type EscrowStatus = 'PENDING' | 'HELD' | 'RELEASED' | 'REFUNDED' | 'DISPUTED'
-export type PayoutStatus  = 'PENDING' | 'PROCESSING' | 'PAID' | 'FAILED'
+export type WalletStatus = "active" | "frozen"
+export type WalletTransactionStatus = "pending" | "completed" | "failed" | "reversed"
+export type WalletTransactionType =
+  | "deposit"
+  | "escrow_hold"
+  | "escrow_release"
+  | "platform_fee"
+  | "refund"
+  | "withdrawal"
+  | "adjustment"
+  | "dispute_hold"
 
-export interface EscrowTransaction {
-  id:                   number
-  milestone:            number
-  amount:               string
-  platform_fee:         string
-  freelancer_gets:      string
-  chargily_checkout_id: string
-  status:               EscrowStatus
-  created_at:           string
-  paid_at:              string | null
-  released_at:          string | null
+export type EscrowHoldStatus = "active" | "released" | "refunded" | "disputed" | "cancelled"
+export type PayoutStatus = "pending" | "processing" | "paid" | "failed" | "reversed" | "cancelled"
+
+export interface Wallet {
+  id: number
+  currency: string
+  available_balance: string
+  escrow_balance: string
+  status: WalletStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface WalletTransaction {
+  id: number
+  transaction_type: WalletTransactionType
+  status: WalletTransactionStatus
+  amount: string
+  currency: string
+  balance_before: string
+  balance_after: string
+  reference_type: string
+  reference_id: string
+  provider_name: string
+  provider_reference: string
+  description: string
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
+export interface EscrowHold {
+  id: number
+  contract_reference: string
+  amount: string
+  currency: string
+  status: EscrowHoldStatus
+  idempotency_key: string
+  funding_transaction_id: number
+  resolution_transaction_id: number | null
+  resolution_note: string
+  resolved_at: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
 }
 
 export interface Payout {
-  id:                  number
-  freelancer_username: string
-  amount:              string
-  status:              PayoutStatus
-  reference:           string
-  created_at:          string
-  paid_at:             string | null
+  id: number
+  amount: string
+  currency: string
+  status: PayoutStatus
+  idempotency_key: string
+  provider_name: string
+  provider_reference: string
+  destination_type: string
+  destination_label: string
+  failure_reason: string
+  processed_at: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
 }
 
 // ─── Collabs ─────────────────────────────────────────────────────────────────
