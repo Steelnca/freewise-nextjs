@@ -172,35 +172,66 @@ export interface Order {
 
 // ─── Contracts ───────────────────────────────────────────────────────────────
 
-export type ContractStatus = 'ACTIVE' | 'COMPLETED' | 'DISPUTED' | 'CANCELLED'
+export type ContractStatus =
+  | 'DRAFT'
+  | 'PENDING_FUNDING'
+  | 'FUNDED'
+  | 'ACTIVE'
+  | 'SUBMITTED'
+  | 'REVISION_REQUESTED'
+  | 'APPROVED'
+  | 'DISPUTED'
+  | 'RELEASED'
+  | 'CANCELLED'
+  | 'REFUNDED'
+  | 'COMPLETED'
+
 export type MilestoneStatus =
-  | 'PENDING' | 'FUNDED' | 'SUBMITTED'
-  | 'APPROVED' | 'DISPUTED' | 'RELEASED' | 'REFUNDED'
+  | 'PENDING'
+  | 'FUNDED'
+  | 'SUBMITTED'
+  | 'REVISION_REQUESTED'
+  | 'APPROVED'
+  | 'DISPUTED'
+  | 'RELEASED'
+  | 'REFUNDED'
+  | 'CANCELLED'
 
 export interface Milestone {
-  id:           number
-  title:        string
-  amount:       string
-  due_date:     string
-  order:        number
-  status:       MilestoneStatus
-  created_at:   string
+  id: number
+  title: string
+  amount: string
+  due_date: string
+  order: number
+  status: MilestoneStatus
+  created_at: string
   submitted_at: string | null
-  approved_at:  string | null
+  approved_at: string | null
+  released_at?: string | null
+  refunded_at?: string | null
+  disputed_at?: string | null
+  description?: string
+  currency?: string
+  submission_note?: string
+  review_note?: string
+  dispute_reason?: string
 }
 
 export interface Contract {
-  id:                  number
-  job:                 number
-  job_title:           string
-  client_username:     string
+  id: number
+  job: number
+  job_title: string
+  client_username: string
   freelancer_username: string
-  agreed_price:        string
-  deadline:            string
-  status:              ContractStatus
-  milestones:          Milestone[]
-  created_at:          string
-  completed_at:        string | null
+  agreed_price: string
+  deadline: string
+  status: ContractStatus
+  milestones: Milestone[]
+  created_at: string
+  completed_at: string | null
+  funded_at?: string | null
+  submitted_at?: string | null
+  notes?: string
 }
 
 // ─── Payments ────────────────────────────────────────────────────────────────

@@ -21,7 +21,10 @@ export const ROUTES = {
 
     post: "/dashboard/post",
     proposals: "/dashboard/proposals",
-    contracts: "/dashboard/contracts",
+    contracts: {
+      root: "/dashboard/contracts",
+      contractDetail: (id: number) => `/dashboard/contracts/${id}`,
+    },
     services: "/dashboard/services",
     collabs: "/dashboard/collabs",
     messages: "/dashboard/messages",

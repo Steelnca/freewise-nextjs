@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { CalendarIcon, ShieldCheckIcon, StarIcon } from 'lucide-react'
+import { ROUTES } from '@/lib/routes'
 
 const STATUS_CLS: Record<string, string> = {
   ACTIVE:    'bg-blue-100 text-blue-700',
@@ -160,6 +161,12 @@ export default function ContractsPage() {
                         }`}>
                           {milestone.status}
                         </span>
+
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={ROUTES.dashboard.contracts.contractDetail(contract.id)}>
+                            Open details
+                          </Link>
+                        </Button>
 
                         {/* Client actions */}
                         {mode === 'client' && milestone.status === 'PENDING' && (
