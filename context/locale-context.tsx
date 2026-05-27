@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import en from '@/messages/en'
 import fr from '@/messages/fr'
 import ar from '@/messages/ar'
-import type { Messages } from '@/lib/types'
+import type { Messages } from '@/messages/types'
 
 export type Locale = 'en' | 'fr' | 'ar'
 

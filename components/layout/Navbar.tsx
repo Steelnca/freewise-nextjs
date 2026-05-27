@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { MenuIcon, XIcon } from 'lucide-react'
+import { ROUTES } from '@/lib/routes'
 
 const LOCALE_LABELS: Record<Locale, string> = { en: 'EN', fr: 'FR', ar: 'ع' }
 
@@ -82,10 +83,10 @@ export default function Navbar() {
           ) : (
             <>
               <Button size="sm" variant="ghost" asChild>
-                <Link href="/login">{t.nav.login}</Link>
+                <Link href={ROUTES.auth.login}>{t.nav.login}</Link>
               </Button>
               <Button size="sm" asChild>
-                <Link href="/register">{t.nav.register}</Link>
+                <Link href={ROUTES.auth.register}>{t.nav.register}</Link>
               </Button>
             </>
           ))

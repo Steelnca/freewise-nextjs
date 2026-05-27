@@ -65,7 +65,9 @@ export default function PostJobPage() {
       const mapped: Record<string, string> = {}
       Object.entries(data).forEach(([k, v]) => { mapped[k] = Array.isArray(v) ? v[0] : String(v) })
       setErrors(mapped)
-      toast.error('Failed to post job')
+      // show backend error if exists, otherwise generic message
+      // mapped.non_field_errors comes empty i gotta change it
+      toast.error(data.detail || 'Failed to post job. Please check any form errors.')
     } finally {
       setLoading(false)
     }

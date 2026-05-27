@@ -44,6 +44,7 @@ const ar: Messages = {
       submit:       'تسجيل الدخول',
       noAccount:    'ليس لديك حساب؟',
       registerLink: 'سجّل الآن',
+      forgotPasswordLink: 'نسيت كلمة المرور؟',
     },
     register: {
       title:       'انضم إلى Freewise',
@@ -66,6 +67,7 @@ const ar: Messages = {
     noRole:             'لم تقم بتفعيل أي دور بعد.',
     chooseRole:         'اختر كيف تريد استخدام Freewise:',
     overview:           'نظرة عامة',
+    payments:           'المدفوعات',
     myJobs:             'وظائفي',
     postJob:            'انشر وظيفة',
     browseJobs:         'تصفح الوظائف',
@@ -75,6 +77,14 @@ const ar: Messages = {
     profile:            'الملف الشخصي',
     collabs:            'تعاون',
     settings:           'الإعدادات',
+  },
+  payments: {
+    title:       'المدفوعات',
+    balance:     'الرصيد',
+    transactions: 'المعاملات',
+    deposit:     'إيداع الأموال',
+    withdraw:    'سحب الأموال',
+    noTransactions: 'لا توجد معاملات في الوقت الحالي',
   },
   jobs: {
     title:          'ابحث عن عمل',

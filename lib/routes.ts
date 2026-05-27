@@ -1,8 +1,6 @@
 
 export const ROUTES = {
   home: "/",
-  login: "/login",
-  register: "/register",
   auth: {
     login: "/auth/login",
     logout: "/auth/logout",
@@ -14,11 +12,21 @@ export const ROUTES = {
   },
   dashboard: {
     root: "/dashboard",
-    jobs: "/dashboard/jobs",
+    jobs: {
+      root: "/dashboard/jobs",
+      job: (jobId: number) => `/dashboard/jobs/${jobId}`,
+      jobEdit: (jobId: number) => `/dashboard/jobs/${jobId}/edit`,
+      jobProposals: (jobId: number) => `/dashboard/jobs/${jobId}/proposals`,
+    },
+
+    post: "/dashboard/post",
     proposals: "/dashboard/proposals",
     contracts: "/dashboard/contracts",
+    services: "/dashboard/services",
     collabs: "/dashboard/collabs",
     messages: "/dashboard/messages",
+    wallet: "/dashboard/wallet",
+    notifications: "/dashboard/notifications",
     payments: {
       root: "/dashboard/payments",
       transactions: "/dashboard/payments/transactions",

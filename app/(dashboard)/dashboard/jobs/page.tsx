@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SearchIcon, PlusIcon, UsersIcon, CalendarIcon, DollarSignIcon, SendIcon } from 'lucide-react'
+import { ROUTES } from '@/lib/routes'
 
 const levelCls: Record<string, string> = {
   ENTRY:  'bg-green-100 text-green-700',
@@ -134,7 +135,7 @@ export default function JobsPage() {
         <Card>
           <CardContent className="py-16 flex flex-col items-center gap-4 text-center">
             <p className="text-muted-foreground">{t.jobs.noJobs}</p>
-            {isClient && <Button asChild><Link href="/dashboard/post">{t.jobs.post}</Link></Button>}
+            {isClient && <Button asChild><Link href={ROUTES.dashboard.post}>{t.jobs.post}</Link></Button>}
           </CardContent>
         </Card>
       ) : (
@@ -180,8 +181,10 @@ export default function JobsPage() {
                     </div>
                   </div>
                   {isClient && job.status === 'OPEN' && job.proposal_count > 0 && (
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href={`/dashboard/jobs/${job.id}/proposals`}>View proposals</Link>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={ROUTES.dashboard.jobs.jobProposals(job.id)}>
+                        View proposals
+                      </Link>
                     </Button>
                   )}
                   {!isClient && (

@@ -203,9 +203,13 @@ export const payments = {
     metadata?: Record<string, unknown>
   }) => api.post<Payout>('/api/payments/payouts/request/', data),
   fundMilestone: (milestoneId: number) =>
-    api.post<{ checkout_url: string; checkout_id: string; milestone_id: number; amount: string; currency: string }>(
-      `/api/payments/fund/${milestoneId}/`
-    ),
+    api.post<{
+      checkout_url: string
+      checkout_id: string
+      milestone_id: number
+      amount: string
+      currency: string
+    }>(`/api/payments/fund/${milestoneId}/`)
 }
 
 // ─── Collabs ─────────────────────────────────────────────────────────────────

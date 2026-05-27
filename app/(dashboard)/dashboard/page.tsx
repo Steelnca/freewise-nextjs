@@ -63,7 +63,7 @@ export default function DashboardPage() {
           setMyContracts(c.data.slice(0, 5))
           setEscrowed(
             e.data
-              .filter(x => x.status === 'HELD')
+              .filter(x => x.status === 'active')
               .reduce((s, x) => s + parseFloat(x.amount), 0)
           )
         }).finally(() => setLoading(false))
@@ -147,7 +147,7 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium truncate">{job.title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                     <ClockIcon className="w-3 h-3" />
-                    {new Date(job.created_at).toLocaleDateString()} · {job.proposal_count} {t.jobs.offers}
+                    {new Date(job.created_at).toLocaleDateString()} · {job.proposal_count} {t.jobs.proposals}
                   </p>
                 </div>
                 <StatusBadge label={job.status.replace('_', ' ')} cls={jobStatusCls[job.status]} />

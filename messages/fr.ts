@@ -44,6 +44,7 @@ const fr: Messages = {
       submit:       'Connexion',
       noAccount:    'Pas encore de compte ?',
       registerLink: "S'inscrire",
+      forgotPasswordLink: 'Mot de passe oublié ?',
     },
     register: {
       title:       'Rejoignez Freewise',
@@ -66,6 +67,7 @@ const fr: Messages = {
     noRole:             "Vous n'avez pas encore activé de rôle.",
     chooseRole:         'Choisissez comment utiliser Freewise :',
     overview:           'Aperçu',
+    payments:           'Paiements',
     myJobs:             'Mes emplois',
     postJob:            'Publier un emploi',
     browseJobs:         'Parcourir les emplois',
@@ -75,6 +77,14 @@ const fr: Messages = {
     profile:            'Profil',
     collabs:            'Collabs',
     settings:           'Paramètres',
+  },
+  payments: {
+    title:       'Paiements',
+    balance:     'Solde',
+    transactions: 'Transactions',
+    deposit:     'Déposer des fonds',
+    withdraw:    'Retirer des fonds',
+    noTransactions: 'Aucune transaction pour le moment',
   },
   jobs: {
     title:          'Trouver du travail',

@@ -9,8 +9,6 @@ import { auth, accounts } from '@/lib/api'
 import { useLocale } from '@/context/locale-context'
 import { ModeProvider, useMode, type DashboardMode } from '@/context/mode-context'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -22,10 +20,12 @@ import {
   UsersIcon, LogOutIcon, UserIcon, ChevronDownIcon,
   PlusIcon, WalletIcon, StoreIcon, SettingsIcon,
 } from 'lucide-react'
-import NotificationBell from '@/components/dashboard/NotificationBell'
 import type { Locale } from '@/context/locale-context'
 import DashboardLoadingPage from './dashboard/loading'
 import { ROUTES } from '@/lib/routes'
+import { NotificationProvider } from '@/components/notifications/notification-provider'
+import { NotificationBell } from '@/components/notifications/notification-bell'
+import { DashboardHeader } from '@/components/dashboard/dashboard-header'
 
 const LOCALE_LABELS: Record<Locale, string> = { en: 'EN', fr: 'FR', ar: 'ع' }
 
@@ -39,32 +39,36 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   // NAV defined here so it has access to t
   const NAV: Record<DashboardMode, { href: string; label: string; icon: any }[]> = {
     client: [
-      { href: '/dashboard',           label: t.dashboard.overview,   icon: LayoutDashboardIcon },
-      { href: '/dashboard/jobs',      label: t.dashboard.myJobs,     icon: BriefcaseIcon },
-      { href: '/dashboard/post',      label: t.dashboard.postJob,    icon: PlusIcon },
-      { href: '/dashboard/services',  label: t.nav.services,         icon: StoreIcon },
-      { href: '/dashboard/contracts', label: t.dashboard.contracts,  icon: FileTextIcon },
+      { href: ROUTES.dashboard.root,           label: t.dashboard.overview,   icon: LayoutDashboardIcon },
+      { href: ROUTES.dashboard.payments.root, label: t.dashboard.payments, icon: WalletIcon },
+
+      { href: ROUTES.dashboard.jobs,      label: t.dashboard.myJobs,     icon: BriefcaseIcon },
+      { href: ROUTES.dashboard.post,      label: t.dashboard.postJob,    icon: PlusIcon },
+      { href: ROUTES.dashboard.services,  label: t.nav.services,         icon: StoreIcon },
+      { href: ROUTES.dashboard.contracts, label: t.dashboard.contracts,  icon: FileTextIcon },
+      { href: ROUTES.account.profile,   label: t.dashboard.profile,    icon: UserIcon },
     ],
     freelancer: [
-      { href: '/dashboard',           label: t.dashboard.overview,    icon: LayoutDashboardIcon },
-      { href: '/dashboard/jobs',      label: t.dashboard.browseJobs,  icon: BriefcaseIcon },
-      { href: '/dashboard/proposals', label: t.dashboard.myProposals, icon: FileTextIcon },
-      { href: '/dashboard/services',  label: t.dashboard.myServices,  icon: StoreIcon },
-      { href: '/dashboard/contracts', label: t.dashboard.contracts,   icon: WalletIcon },
-      { href: '/dashboard/profile',   label: t.dashboard.profile,     icon: UserIcon },
+      { href: ROUTES.dashboard.root,           label: t.dashboard.overview,    icon: LayoutDashboardIcon },
+      { href: ROUTES.dashboard.payments.root, label: t.dashboard.payments, icon: WalletIcon },
+      { href: ROUTES.dashboard.jobs,      label: t.dashboard.browseJobs,  icon: BriefcaseIcon },
+      { href: ROUTES.dashboard.proposals, label: t.dashboard.myProposals, icon: FileTextIcon },
+      { href: ROUTES.dashboard.services,  label: t.dashboard.myServices,  icon: StoreIcon },
+      { href: ROUTES.dashboard.contracts, label: t.dashboard.contracts,   icon: WalletIcon },
+      { href: ROUTES.account.profile,   label: t.dashboard.profile,     icon: UserIcon },
     ],
   }
 
   // where to add isReady? we need to wait for auth.me before rendering anything, but we also don't want to flash the wrong UI while we're waiting
   useEffect(() => {
-    if (!tokens.isLoggedIn()) { router.push('/login'); return }
+    if (!tokens.isLoggedIn()) { router.push(ROUTES.auth.login); return }
     auth.me().then(r => {
       setAccount(r.data)
       const saved = localStorage.getItem('fw_mode') as DashboardMode | null
       if (!saved) {
         if (r.data.is_freelancer && !r.data.is_client) setMode('freelancer')
       }
-    }).catch(() => { tokens.clear(); router.push('/login') })
+    }).catch(() => { tokens.clear(); router.push(ROUTES.auth.login) })
     .finally(() => setIsReady(true))
   }, [])
 
@@ -234,7 +238,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <ModeProvider>
-      <DashboardShell>{children}</DashboardShell>
+
+      <NotificationProvider>
+        <DashboardShell>
+          <DashboardHeader />
+          {children}
+        </DashboardShell>
+      </NotificationProvider>
     </ModeProvider>
   )
 }

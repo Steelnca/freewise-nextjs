@@ -50,7 +50,7 @@ export default function PaymentsTransactionsPage() {
           </Button>
           <h1 className="text-3xl font-semibold tracking-tight">Ledger</h1>
           <p className="text-sm text-muted-foreground">
-            Every wallet movement, in order, with no fake balances.
+            Every movement of money in your wallet is recorded here. This includes deposits, payments, payouts, and refunds.
           </p>
         </div>
       </div>
@@ -58,7 +58,7 @@ export default function PaymentsTransactionsPage() {
       <Card className="rounded-2xl">
         <CardHeader>
           <CardTitle>Transaction history</CardTitle>
-          <CardDescription>Immutable records for wallet, escrow, payout, and refund events.</CardDescription>
+          <CardDescription> Immutable records for wallet, escrow, payout, and refund events. </CardDescription>
         </CardHeader>
         <CardContent>
           {items.length === 0 ? (

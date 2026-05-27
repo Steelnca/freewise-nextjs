@@ -42,6 +42,7 @@ export interface Messages {
       submit:       string
       noAccount:    string
       registerLink: string
+      forgotPasswordLink: string
     }
     register: {
       title:       string
@@ -64,6 +65,7 @@ export interface Messages {
     noRole:             string
     chooseRole:         string
     overview:           string
+    payments:           string
     myJobs:             string
     postJob:            string
     browseJobs:         string
@@ -73,6 +75,14 @@ export interface Messages {
     profile:            string
     collabs:            string
     settings:           string
+  }
+  payments: {
+    title:       string
+    balance:    string
+    transactions: string
+    deposit:    string
+    withdraw:   string
+    noTransactions: string
   }
   jobs: {
     title:          string
