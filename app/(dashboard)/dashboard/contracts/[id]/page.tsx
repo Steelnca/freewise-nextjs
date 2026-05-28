@@ -413,7 +413,7 @@ export default function ContractDetailPage() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {mode === 'client' && milestone.status === 'PENDING' ? (
+                      {mode === 'client' && milestone.status.toUpperCase() === 'PENDING' ? (
                         <Button
                           onClick={() => void fundMilestone(milestone.id)}
                           disabled={state.actionMilestoneId === milestone.id}
@@ -423,7 +423,7 @@ export default function ContractDetailPage() {
                         </Button>
                       ) : null}
 
-                      {mode === 'freelancer' && milestone.status === 'FUNDED' ? (
+                      {mode === 'freelancer' && milestone.status.toUpperCase() === 'FUNDED' ? (
                         <Button
                           onClick={() => void submitMilestone(milestone.id)}
                           disabled={state.actionMilestoneId === milestone.id}
@@ -432,7 +432,7 @@ export default function ContractDetailPage() {
                         </Button>
                       ) : null}
 
-                      {mode === 'client' && milestone.status === 'SUBMITTED' ? (
+                      {mode === 'client' && milestone.status.toUpperCase() === 'SUBMITTED' ? (
                         <>
                           <Button
                             onClick={() => void approveMilestone(milestone.id)}

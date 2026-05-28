@@ -21,7 +21,7 @@ export default function Navbar() {
   // Check auth only on client to avoid SSR mismatch
   useEffect(() => {
     setAuthLoading(true)
-    setLoggedIn(tokens.isLoggedIn())
+    setLoggedIn(Boolean(tokens.getAccess()))
     setAuthLoading(false)
   }, [])
 

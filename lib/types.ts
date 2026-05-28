@@ -11,6 +11,11 @@ export interface AuthUser {
   email:    string
 }
 
+type LoginFormValues = {
+  username: string
+  password: string
+}
+
 // ─── Account ─────────────────────────────────────────────────────────────────
 
 export interface Account {

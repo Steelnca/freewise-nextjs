@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { CalendarIcon, ShieldCheckIcon, StarIcon } from 'lucide-react'
+import { CalendarIcon, HandCoinsIcon, ShieldCheckIcon, StarIcon } from 'lucide-react'
 import { ROUTES } from '@/lib/routes'
 
 const STATUS_CLS: Record<string, string> = {
@@ -86,6 +86,12 @@ export default function ContractsPage() {
     } finally { setSubmittingReview(false) }
   }
 
+  const needsFunding = (contract: Contract) =>
+    contract.status === 'PENDING_FUNDING' &&
+    contract.milestones.some(
+    (milestone) => milestone.status.toUpperCase() === 'PENDING'
+  )
+
   return (
     <div className="p-8 space-y-6">
       <div>
@@ -126,7 +132,20 @@ export default function ContractsPage() {
                       <CalendarIcon className="w-3 h-3" />
                       Deadline: {new Date(contract.deadline).toLocaleDateString()}
                     </p>
+                    {needsFunding(contract) ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                        <HandCoinsIcon className="h-3.5 w-3.5" />
+                        Needs funding
+                      </span>
+                    ) : null}
                   </div>
+
+
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={ROUTES.dashboard.contracts.contractDetail(contract.id)}>
+                      Open details
+                    </Link>
+                  </Button>
 
                   {/* Leave a review on completed contracts */}
                   {contract.status === 'COMPLETED' && (
@@ -161,12 +180,6 @@ export default function ContractsPage() {
                         }`}>
                           {milestone.status}
                         </span>
-
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={ROUTES.dashboard.contracts.contractDetail(contract.id)}>
-                            Open details
-                          </Link>
-                        </Button>
 
                         {/* Client actions */}
                         {mode === 'client' && milestone.status === 'PENDING' && (

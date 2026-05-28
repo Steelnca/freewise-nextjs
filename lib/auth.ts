@@ -1,4 +1,3 @@
-
 import Cookies from 'js-cookie'
 
 const ACCESS_KEY  = 'fw_access'
@@ -6,27 +5,42 @@ const REFRESH_KEY = 'fw_refresh'
 
 const isProd = process.env.NODE_ENV === 'production'
 
+// detect secure/cross-site usage (ngrok/https)
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
+let cookieSameSite: 'Lax' | 'None' = 'Lax'
+let cookieSecure = isProd
+
+try {
+  if (API_URL) {
+    const apiOrigin = new URL(API_URL).origin
+    // if API is https and origin likely different from frontend, use SameSite=None & Secure
+    if (apiOrigin.startsWith('https')) {
+      cookieSameSite = 'None'
+      cookieSecure = true
+    }
+  }
+} catch {
+  // ignore parse errors
+}
+
 export const tokens = {
-  getAccess:  (): string | null => Cookies.get(ACCESS_KEY)  ?? null,
-  getRefresh: (): string | null => Cookies.get(REFRESH_KEY) ?? null,
+  getAccess: () =>
+    typeof window !== 'undefined'
+      ? localStorage.getItem(ACCESS_KEY)
+      : null,
 
-  set(access: string, refresh: string) {
-    Cookies.set(ACCESS_KEY, access, {
-      expires:  1 / 48,   // 30 minutes
-      sameSite: 'Lax',
-      secure:   isProd,
-    })
-    Cookies.set(REFRESH_KEY, refresh, {
-      expires:  7,         // 7 days
-      sameSite: 'Lax',
-      secure:   isProd,
-    })
+  getRefresh: () =>
+    typeof window !== 'undefined'
+      ? localStorage.getItem(REFRESH_KEY)
+      : null,
+
+  set: (access: string, refresh: string) => {
+    localStorage.setItem(ACCESS_KEY, access)
+    localStorage.setItem(REFRESH_KEY, refresh)
   },
 
-  clear() {
-    Cookies.remove(ACCESS_KEY)
-    Cookies.remove(REFRESH_KEY)
+  clear: () => {
+    localStorage.removeItem(ACCESS_KEY)
+    localStorage.removeItem(REFRESH_KEY)
   },
-
-  isLoggedIn: (): boolean => !!Cookies.get(ACCESS_KEY),
 }

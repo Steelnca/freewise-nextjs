@@ -29,15 +29,26 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setErrors({})
+
     try {
       const { data } = await auth.login(form)
+
+      if (!data?.access || !data?.refresh) {
+        throw new Error('Missing tokens in login response.')
+      }
+
       tokens.set(data.access, data.refresh)
-      toast.success('Logged in successfully')
-      router.push(ROUTES.dashboard.root)
+
+      const savedAccess = tokens.getAccess()
+      if (!savedAccess) {
+        throw new Error('Token storage failed.')
+      }
+
+      toast.success('Welcome back!')
+      router.replace(ROUTES.dashboard.root)
+
     } catch (err: any) {
-      const detail = err?.response?.data?.detail
-      setErrors({ general: detail ?? 'Invalid credentials.' })
+      toast.error(err?.response?.data?.detail || err.message || 'Login failed')
     } finally {
       setLoading(false)
     }

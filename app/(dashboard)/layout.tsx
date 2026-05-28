@@ -42,26 +42,26 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       { href: ROUTES.dashboard.root,           label: t.dashboard.overview,   icon: LayoutDashboardIcon },
       { href: ROUTES.dashboard.payments.root, label: t.dashboard.payments, icon: WalletIcon },
 
-      { href: ROUTES.dashboard.jobs,      label: t.dashboard.myJobs,     icon: BriefcaseIcon },
+      { href: ROUTES.dashboard.jobs.root,      label: t.dashboard.myJobs,     icon: BriefcaseIcon },
       { href: ROUTES.dashboard.post,      label: t.dashboard.postJob,    icon: PlusIcon },
       { href: ROUTES.dashboard.services,  label: t.nav.services,         icon: StoreIcon },
-      { href: ROUTES.dashboard.contracts, label: t.dashboard.contracts,  icon: FileTextIcon },
+      { href: ROUTES.dashboard.contracts.root, label: t.dashboard.contracts,  icon: FileTextIcon },
       { href: ROUTES.account.profile,   label: t.dashboard.profile,    icon: UserIcon },
     ],
     freelancer: [
       { href: ROUTES.dashboard.root,           label: t.dashboard.overview,    icon: LayoutDashboardIcon },
       { href: ROUTES.dashboard.payments.root, label: t.dashboard.payments, icon: WalletIcon },
-      { href: ROUTES.dashboard.jobs,      label: t.dashboard.browseJobs,  icon: BriefcaseIcon },
+      { href: ROUTES.dashboard.jobs.root,      label: t.dashboard.browseJobs,  icon: BriefcaseIcon },
       { href: ROUTES.dashboard.proposals, label: t.dashboard.myProposals, icon: FileTextIcon },
       { href: ROUTES.dashboard.services,  label: t.dashboard.myServices,  icon: StoreIcon },
-      { href: ROUTES.dashboard.contracts, label: t.dashboard.contracts,   icon: WalletIcon },
+      { href: ROUTES.dashboard.contracts.root, label: t.dashboard.contracts,   icon: WalletIcon },
       { href: ROUTES.account.profile,   label: t.dashboard.profile,     icon: UserIcon },
     ],
   }
 
   // where to add isReady? we need to wait for auth.me before rendering anything, but we also don't want to flash the wrong UI while we're waiting
   useEffect(() => {
-    if (!tokens.isLoggedIn()) { router.push(ROUTES.auth.login); return }
+    if (!tokens.getAccess()) { router.push(ROUTES.auth.login); return }
     auth.me().then(r => {
       setAccount(r.data)
       const saved = localStorage.getItem('fw_mode') as DashboardMode | null
