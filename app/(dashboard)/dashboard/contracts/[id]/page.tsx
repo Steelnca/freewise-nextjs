@@ -10,6 +10,7 @@ import {
   CalendarIcon,
   FileTextIcon,
   HandCoinsIcon,
+  PlusIcon,
   StarIcon,
   UserIcon,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import CreateMilestoneDialog from '@/components/dialogs/contracts/CreateMilestoneDialog'
 
 type ContractDetailState = {
   contract: Contract | null
@@ -62,6 +64,7 @@ export default function ContractDetailPage() {
   const params = useParams<{ id?: string }>()
   const router = useRouter()
   const { mode } = useMode()
+  const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false)
 
   const contractId = Number(params?.id)
 
@@ -72,7 +75,7 @@ export default function ContractDetailPage() {
     actionMilestoneId: null,
   })
 
-  const load = async () => {
+  const loadContract = async () => {
     if (!contractId || Number.isNaN(contractId)) return
 
     setState((current) => ({ ...current, loading: true }))
@@ -111,8 +114,12 @@ export default function ContractDetailPage() {
     }
   }
 
+  const reloadContract = async () => {
+    await loadContract()
+  }
+
   useEffect(() => {
-    load()
+    loadContract()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractId])
 
@@ -146,7 +153,7 @@ export default function ContractDetailPage() {
     try {
       await contractsApi.submitMilestone(milestoneId)
       toast.success('Milestone submitted for review.')
-      await load()
+      await loadContract()
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to submit milestone.')
     } finally {
@@ -159,7 +166,7 @@ export default function ContractDetailPage() {
     try {
       await contractsApi.approveMilestone(milestoneId)
       toast.success('Milestone approved.')
-      await load()
+      await loadContract()
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to approve milestone.')
     } finally {
@@ -172,7 +179,7 @@ export default function ContractDetailPage() {
     try {
       await contractsApi.disputeMilestone(milestoneId)
       toast.success('Dispute opened.')
-      await load()
+      await loadContract()
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to open dispute.')
     } finally {
@@ -378,12 +385,27 @@ export default function ContractDetailPage() {
       </section>
 
       <Card className="rounded-3xl">
-        <CardHeader>
-          <CardTitle>Milestones</CardTitle>
-          <CardDescription>
-            Fund, submit, approve, or dispute each phase from one place.
-          </CardDescription>
+        <CardHeader className="flex items-center justify-between">
+          <div>
+            <CardTitle>Milestones</CardTitle>
+            <CardDescription>
+              Fund, submit, approve, or dispute each phase from one place.
+            </CardDescription>
+          </div>
+          {mode === 'client' && contract.status === 'PENDING_FUNDING' ? (
+            <Button onClick={() => setMilestoneDialogOpen(true)}>
+              <PlusIcon className="mr-2 h-4 w-4" />
+              Add milestone
+            </Button>
+          ) : null}
         </CardHeader>
+
+        <CreateMilestoneDialog
+          open={milestoneDialogOpen}
+          onOpenChange={setMilestoneDialogOpen}
+          contractId={contract.id}
+          onCreated={reloadContract}
+        />
 
         <CardContent className="space-y-4">
           {contract.milestones.length === 0 ? (

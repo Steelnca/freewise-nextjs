@@ -11,11 +11,6 @@ import { ROUTES } from '@/lib/routes'
 export default function PaymentSuccessPage() {
   const router = useRouter()
 
-  useEffect(() => {
-    const t = setTimeout(() => router.push(ROUTES.dashboard.contracts), 5000)
-    return () => clearTimeout(t)
-  }, [])
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/20 p-8">
       <motion.div
@@ -50,7 +45,7 @@ export default function PaymentSuccessPage() {
 
         <div className="flex flex-col gap-3">
           <Button asChild>
-            <Link href={ROUTES.dashboard.contracts}>
+            <Link href={ROUTES.dashboard.contracts.root}>
               View Contract <ArrowRightIcon className="w-4 h-4 ml-2" />
             </Link>
           </Button>
@@ -58,8 +53,6 @@ export default function PaymentSuccessPage() {
             <Link href={ROUTES.dashboard.root}>Back to Dashboard</Link>
           </Button>
         </div>
-
-        <p className="text-xs text-muted-foreground">Redirecting in 5 seconds...</p>
       </motion.div>
     </div>
   )

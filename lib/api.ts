@@ -213,6 +213,16 @@ export const orders = {
 export const contracts = {
   list: () => api.get<Contract[]>(`${API_PREFIX}/contracts/`),
   get: (id: number) => api.get<Contract>(`${API_PREFIX}/contracts/${id}/`),
+  createMilestone: (
+    contractId: number,
+    data: {
+      title: string
+      description?: string
+      amount: string
+      due_date: string
+      order: number
+    }
+  ) => api.post(`${API_PREFIX}/contracts/${contractId}/milestones/`, data),
   submitMilestone: (id: number) =>
     api.post(`${API_PREFIX}/contracts/milestones/${id}/submit/`),
   approveMilestone: (id: number) =>
