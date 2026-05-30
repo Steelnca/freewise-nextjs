@@ -1,21 +1,21 @@
-
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
 import {
+  AlertTriangleIcon,
   ArrowLeftIcon,
   CalendarIcon,
   FileTextIcon,
   HandCoinsIcon,
   PlusIcon,
+  SendIcon,
   StarIcon,
   UserIcon,
 } from 'lucide-react'
 
-import { useMode } from '@/context/mode-context'
 import { contracts as contractsApi, payments, proposals as proposalsApi } from '@/lib/api'
 import { ROUTES } from '@/lib/routes'
 import type { Contract, Milestone, Proposal } from '@/lib/types'
@@ -25,35 +25,56 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import CreateMilestoneDialog from '@/components/dialogs/contracts/CreateMilestoneDialog'
+import SubmitWorkDialog from '@/components/dialogs/contracts/SubmitWorkDialog'
+
+type ContractViewerRole = 'client' | 'freelancer' | null
+
+type MilestoneWithExtras = Milestone & {
+  submission_note?: string
+  submission_link?: string
+}
+
+type ProposalWithExtras = Proposal & {
+  freelancer_rating?: number
+}
+
+type ContractDetailContract = Contract & {
+  viewer_role?: ContractViewerRole
+  viewer_is_client?: boolean
+  viewer_is_freelancer?: boolean
+  milestones: MilestoneWithExtras[]
+}
 
 type ContractDetailState = {
-  contract: Contract | null
-  acceptedProposal: Proposal | null
+  contract: ContractDetailContract | null
+  acceptedProposal: ProposalWithExtras | null
   loading: boolean
   actionMilestoneId: number | null
 }
 
-const money = (value: string) => Number(value || 0).toLocaleString('fr-DZ')
+const money = (value: string | number) => Number(value || 0).toLocaleString('fr-DZ')
+
+const normalizeStatus = (value?: string | null) => (value ?? '').toLowerCase()
 
 function statusTone(status: string) {
-  switch (status) {
-    case 'PENDING_FUNDING':
-    case 'PENDING':
+  switch (normalizeStatus(status)) {
+    case 'pending_funding':
+    case 'pending':
       return 'bg-amber-100 text-amber-700'
-    case 'FUNDED':
-    case 'ACTIVE':
+    case 'funded':
+    case 'active':
       return 'bg-blue-100 text-blue-700'
-    case 'SUBMITTED':
-    case 'APPROVED':
+    case 'submitted':
+    case 'approved':
       return 'bg-violet-100 text-violet-700'
-    case 'RELEASED':
-    case 'COMPLETED':
+    case 'released':
+    case 'completed':
       return 'bg-green-100 text-green-700'
-    case 'DISPUTED':
+    case 'disputed':
       return 'bg-red-100 text-red-700'
-    case 'REFUNDED':
+    case 'refunded':
       return 'bg-slate-100 text-slate-700'
-    case 'CANCELLED':
+    case 'cancelled':
       return 'bg-zinc-100 text-zinc-700'
     default:
       return 'bg-muted text-muted-foreground'
@@ -62,10 +83,6 @@ function statusTone(status: string) {
 
 export default function ContractDetailPage() {
   const params = useParams<{ id?: string }>()
-  const router = useRouter()
-  const { mode } = useMode()
-  const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false)
-
   const contractId = Number(params?.id)
 
   const [state, setState] = useState<ContractDetailState>({
@@ -75,6 +92,9 @@ export default function ContractDetailPage() {
     actionMilestoneId: null,
   })
 
+  const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false)
+  const [submitDialogMilestone, setSubmitDialogMilestone] = useState<MilestoneWithExtras | null>(null)
+
   const loadContract = async () => {
     if (!contractId || Number.isNaN(contractId)) return
 
@@ -82,16 +102,17 @@ export default function ContractDetailPage() {
 
     try {
       const contractRes = await contractsApi.get(contractId)
-      const contract = contractRes.data as Contract
+      const contract = contractRes.data as ContractDetailContract
 
-      let acceptedProposal: Proposal | null = null
+      let acceptedProposal: ProposalWithExtras | null = null
 
       if (contract.job) {
         try {
           const proposalsRes = await proposalsApi.forJob(contract.job)
           acceptedProposal =
-            (proposalsRes.data as Proposal[]).find((proposal) => proposal.status === 'ACCEPTED') ??
-            null
+            (proposalsRes.data as ProposalWithExtras[]).find(
+              (proposal) => normalizeStatus(proposal.status) === 'accepted'
+            ) ?? null
         } catch {
           acceptedProposal = null
         }
@@ -126,16 +147,82 @@ export default function ContractDetailPage() {
   const contract = state.contract
   const acceptedProposal = state.acceptedProposal
 
-  const summary = useMemo(() => {
-    const milestones = contract?.milestones || []
-    return {
-      total: milestones.length,
-      pending: milestones.filter((m) => m.status === 'PENDING').length,
-      funded: milestones.filter((m) => m.status === 'FUNDED').length,
-      active: milestones.filter((m) => m.status === 'SUBMITTED' || m.status === 'APPROVED').length,
-      released: milestones.filter((m) => m.status === 'RELEASED').length,
+  const milestones = contract?.milestones ?? []
+
+  const viewerRole = contract?.viewer_role ?? null
+  const isClientParty = viewerRole === 'client'
+  const isFreelancerParty = viewerRole === 'freelancer'
+
+  const contractStatus = normalizeStatus(contract?.status)
+  const hasDispute =
+    contractStatus === 'disputed' || milestones.some((milestone) => normalizeStatus(milestone.status) === 'disputed')
+
+  const hasSubmitted = milestones.some((milestone) => normalizeStatus(milestone.status) === 'submitted')
+  const firstPendingMilestone = milestones.find((milestone) => normalizeStatus(milestone.status) === 'pending') ?? null
+  const firstFundedMilestone = milestones.find((milestone) => normalizeStatus(milestone.status) === 'funded') ?? null
+  const canEditMilestones = contractStatus === 'pending_funding'
+  const isFinished = contractStatus === 'released' || contractStatus === 'completed'
+
+  const milestoneTotal = useMemo(() => {
+    return milestones.reduce((sum, milestone) => sum + Number(milestone.amount || 0), 0)
+  }, [milestones])
+
+  const remainingAmount = useMemo(() => {
+    return Number(contract?.agreed_price || 0) - milestoneTotal
+  }, [contract?.agreed_price, milestoneTotal])
+
+  const nextAction = useMemo(() => {
+    if (!contract) return 'Loading contract...'
+
+    if (!viewerRole) {
+      return 'You are not a party to this contract.'
     }
-  }, [contract])
+
+    if (hasDispute) {
+      return 'This contract is in dispute. No actions are available right now.'
+    }
+
+    if (isFinished) {
+      return 'This contract is complete.'
+    }
+
+    if (isClientParty) {
+      if (canEditMilestones) {
+        return 'Split or edit milestones, then fund the first one.'
+      }
+
+      if (hasSubmitted) {
+        return 'Review the freelancer submission.'
+      }
+
+      if (firstPendingMilestone) {
+        return 'Fund the first pending milestone to start work.'
+      }
+
+      return 'Waiting for freelancer submission.'
+    }
+
+    if (isFreelancerParty) {
+      if (firstFundedMilestone) {
+        return 'Submit the funded milestone.'
+      }
+
+      return 'Waiting for the client to fund a milestone.'
+    }
+
+    return 'No actions available.'
+  }, [
+    contract,
+    viewerRole,
+    hasDispute,
+    isFinished,
+    isClientParty,
+    isFreelancerParty,
+    canEditMilestones,
+    hasSubmitted,
+    firstPendingMilestone,
+    firstFundedMilestone,
+  ])
 
   const fundMilestone = async (milestoneId: number) => {
     setState((current) => ({ ...current, actionMilestoneId: milestoneId }))
@@ -144,19 +231,6 @@ export default function ContractDetailPage() {
       window.location.href = data.checkout_url
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to initiate payment.')
-      setState((current) => ({ ...current, actionMilestoneId: null }))
-    }
-  }
-
-  const submitMilestone = async (milestoneId: number) => {
-    setState((current) => ({ ...current, actionMilestoneId: milestoneId }))
-    try {
-      await contractsApi.submitMilestone(milestoneId)
-      toast.success('Milestone submitted for review.')
-      await loadContract()
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to submit milestone.')
-    } finally {
       setState((current) => ({ ...current, actionMilestoneId: null }))
     }
   }
@@ -233,20 +307,60 @@ export default function ContractDetailPage() {
           </h1>
 
           <p className="text-sm text-muted-foreground">
-            Contract #{contract.id} · {contract.status.replaceAll('_', ' ')}
+            Contract #{contract.id} · {normalizeStatus(contract.status).replaceAll('_', ' ')}
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <Badge className={statusTone(contract.status)}>
-            {contract.status.replaceAll('_', ' ')}
+            {normalizeStatus(contract.status).replaceAll('_', ' ')}
           </Badge>
+
+          {viewerRole ? (
+            <Badge variant="secondary">
+              {viewerRole === 'client' ? 'Client workspace' : 'Freelancer workspace'}
+            </Badge>
+          ) : (
+            <Badge variant="secondary">No party access</Badge>
+          )}
 
           <Badge variant="outline">
             {money(contract.agreed_price)} DZD
           </Badge>
         </div>
       </div>
+
+      <Card
+        className={
+          hasDispute
+            ? 'rounded-3xl border-red-200 bg-red-50/60'
+            : 'rounded-3xl border-dashed'
+        }
+      >
+        <CardContent className="p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="mt-1 rounded-full bg-background p-2 shadow-sm">
+                <AlertTriangleIcon className={hasDispute ? 'h-4 w-4 text-red-600' : 'h-4 w-4 text-muted-foreground'} />
+              </div>
+
+              <div>
+                <p className="text-sm font-medium">Next action</p>
+                <p className="text-sm text-muted-foreground">{nextAction}</p>
+              </div>
+            </div>
+
+            {isClientParty && canEditMilestones && !hasDispute ? (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setMilestoneDialogOpen(true)}>
+                  <PlusIcon className="mr-2 h-4 w-4" />
+                  Add milestone
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
 
       <section className="grid gap-4 md:grid-cols-4">
         <Card className="rounded-3xl">
@@ -276,7 +390,10 @@ export default function ContractDetailPage() {
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Milestones</p>
             <p className="mt-2 font-medium">
-              {summary.total} total
+              {milestones.length} total
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {money(milestoneTotal)} DZD of {money(contract.agreed_price)} DZD used
             </p>
           </CardContent>
         </Card>
@@ -300,7 +417,7 @@ export default function ContractDetailPage() {
                       <UserIcon className="h-4 w-4 text-muted-foreground" />
                       <p className="font-medium">{acceptedProposal.freelancer_username}</p>
                       <Badge variant="secondary">
-                        {acceptedProposal.freelancer_rating}
+                        {acceptedProposal.freelancer_rating ?? 0}
                         <StarIcon className="ml-1 h-3 w-3" />
                       </Badge>
                     </div>
@@ -342,44 +459,58 @@ export default function ContractDetailPage() {
 
         <Card className="rounded-3xl">
           <CardHeader>
-            <CardTitle>Contract summary</CardTitle>
-            <CardDescription>Useful numbers at a glance.</CardDescription>
+            <CardTitle>
+              {viewerRole === 'freelancer'
+                ? 'Freelancer workspace'
+                : viewerRole === 'client'
+                  ? 'Client workspace'
+                  : 'Contract workspace'}
+            </CardTitle>
+            <CardDescription>
+              {viewerRole === 'freelancer'
+                ? 'Submit delivered work when a milestone is funded.'
+                : viewerRole === 'client'
+                  ? 'Edit milestones, fund work, and review submissions.'
+                  : 'You are not part of this contract, so actions are disabled.'}
+            </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-2xl border p-4">
-              <div className="flex items-center gap-3">
-                <FileTextIcon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Pending milestones</span>
-              </div>
-              <span className="font-medium">{summary.pending}</span>
-            </div>
-
-            <div className="flex items-center justify-between rounded-2xl border p-4">
-              <div className="flex items-center gap-3">
-                <HandCoinsIcon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Funded milestones</span>
-              </div>
-              <span className="font-medium">{summary.funded}</span>
-            </div>
-
-            <div className="flex items-center justify-between rounded-2xl border p-4">
-              <div className="flex items-center gap-3">
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Released milestones</span>
-              </div>
-              <span className="font-medium">{summary.released}</span>
-            </div>
-
-            {contract.notes ? (
+          <CardContent className="space-y-3">
+            {viewerRole === 'client' ? (
               <>
-                <Separator />
-                <div>
-                  <p className="text-sm font-medium">Notes</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{contract.notes}</p>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-sm font-medium">Client flow</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Split milestones before funding, then fund the first pending milestone.
+                  </p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-sm font-medium">Review flow</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Once work is submitted, you can approve or dispute it from the milestone card.
+                  </p>
                 </div>
               </>
-            ) : null}
+            ) : viewerRole === 'freelancer' ? (
+              <>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-sm font-medium">Delivery flow</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    When a milestone becomes funded, you can submit a delivery summary and link.
+                  </p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-sm font-medium">Payout flow</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Approved milestones release escrow and move funds toward your wallet.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+                No actions are available for this contract.
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>
@@ -392,7 +523,8 @@ export default function ContractDetailPage() {
               Fund, submit, approve, or dispute each phase from one place.
             </CardDescription>
           </div>
-          {mode === 'client' && contract.status === 'PENDING_FUNDING' ? (
+
+          {isClientParty && canEditMilestones && !hasDispute ? (
             <Button onClick={() => setMilestoneDialogOpen(true)}>
               <PlusIcon className="mr-2 h-4 w-4" />
               Add milestone
@@ -407,117 +539,189 @@ export default function ContractDetailPage() {
           onCreated={reloadContract}
         />
 
+        <SubmitWorkDialog
+          open={!!submitDialogMilestone}
+          onOpenChange={(open) => {
+            if (!open) setSubmitDialogMilestone(null)
+          }}
+          milestoneId={submitDialogMilestone?.id || 0}
+          onSubmitted={() => {
+            setSubmitDialogMilestone(null)
+            reloadContract()
+          }}
+        />
+
         <CardContent className="space-y-4">
-          {contract.milestones.length === 0 ? (
+          {milestones.length === 0 ? (
             <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
               No milestones yet.
             </div>
           ) : (
-            contract.milestones.map((milestone: Milestone, index: number) => (
-              <div key={milestone.id}>
-                {index > 0 ? <Separator className="my-4" /> : null}
+            milestones.map((milestone, index) => {
+              const milestoneStatus = normalizeStatus(milestone.status)
+              const canFundThis = isClientParty && !hasDispute && milestoneStatus === 'pending'
+              const canSubmitThis = isFreelancerParty && !hasDispute && milestoneStatus === 'funded'
+              const canReviewThis = isClientParty && !hasDispute && milestoneStatus === 'submitted'
 
-                <div className="rounded-3xl border p-5">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-base font-semibold">{milestone.title}</p>
-                        <Badge className={statusTone(milestone.status)}>
-                          {milestone.status.replaceAll('_', ' ')}
-                        </Badge>
+              return (
+                <div key={milestone.id}>
+                  {index > 0 ? <Separator className="my-4" /> : null}
+
+                  <div className="rounded-3xl border p-5">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-base font-semibold">{milestone.title}</p>
+                          <Badge className={statusTone(milestone.status)}>
+                            {milestoneStatus.replaceAll('_', ' ')}
+                          </Badge>
+                        </div>
+
+                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <span>Amount: <strong>{money(milestone.amount)} DZD</strong></span>
+                          <span>Order: <strong>{milestone.order}</strong></span>
+                          <span>Due: <strong>{new Date(milestone.due_date).toLocaleDateString()}</strong></span>
+                        </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                        <span>Amount: <strong>{money(milestone.amount)} DZD</strong></span>
-                        <span>Order: <strong>{milestone.order}</strong></span>
-                        <span>Due: <strong>{new Date(milestone.due_date).toLocaleDateString()}</strong></span>
+                      <div className="flex flex-wrap gap-2">
+                        {canFundThis ? (
+                          <Button
+                            onClick={() => void fundMilestone(milestone.id)}
+                            disabled={state.actionMilestoneId === milestone.id}
+                          >
+                            <HandCoinsIcon className="mr-2 h-4 w-4" />
+                            {state.actionMilestoneId === milestone.id ? 'Opening checkout...' : 'Fund milestone'}
+                          </Button>
+                        ) : null}
+
+                        {canSubmitThis ? (
+                          <Button
+                            onClick={() => setSubmitDialogMilestone(milestone)}
+                            disabled={state.actionMilestoneId === milestone.id}
+                          >
+                            <SendIcon className="mr-2 h-4 w-4" />
+                            Submit work
+                          </Button>
+                        ) : null}
+
+                        {canReviewThis ? (
+                          <>
+                            <Button
+                              onClick={() => void approveMilestone(milestone.id)}
+                              disabled={state.actionMilestoneId === milestone.id}
+                            >
+                              {state.actionMilestoneId === milestone.id ? 'Approving...' : 'Approve'}
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              onClick={() => void disputeMilestone(milestone.id)}
+                              disabled={state.actionMilestoneId === milestone.id}
+                            >
+                              {state.actionMilestoneId === milestone.id ? 'Opening...' : 'Dispute'}
+                            </Button>
+                          </>
+                        ) : null}
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      {mode === 'client' && milestone.status.toUpperCase() === 'PENDING' ? (
-                        <Button
-                          onClick={() => void fundMilestone(milestone.id)}
-                          disabled={state.actionMilestoneId === milestone.id}
-                        >
-                          <HandCoinsIcon className="mr-2 h-4 w-4" />
-                          {state.actionMilestoneId === milestone.id ? 'Opening checkout...' : 'Fund milestone'}
-                        </Button>
-                      ) : null}
+                    {milestone.description ? (
+                      <p className="mt-4 text-sm text-muted-foreground">
+                        {milestone.description}
+                      </p>
+                    ) : null}
 
-                      {mode === 'freelancer' && milestone.status.toUpperCase() === 'FUNDED' ? (
-                        <Button
-                          onClick={() => void submitMilestone(milestone.id)}
-                          disabled={state.actionMilestoneId === milestone.id}
-                        >
-                          {state.actionMilestoneId === milestone.id ? 'Submitting...' : 'Submit work'}
-                        </Button>
-                      ) : null}
-
-                      {mode === 'client' && milestone.status.toUpperCase() === 'SUBMITTED' ? (
-                        <>
-                          <Button
-                            onClick={() => void approveMilestone(milestone.id)}
-                            disabled={state.actionMilestoneId === milestone.id}
+                    {milestone.submission_note || milestone.submission_link ? (
+                      <div className="mt-4 rounded-2xl border bg-muted/30 p-4">
+                        <p className="text-sm font-medium">Submission details</p>
+                        {milestone.submission_note ? (
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            {milestone.submission_note}
+                          </p>
+                        ) : null}
+                        {milestone.submission_link ? (
+                          <a
+                            href={milestone.submission_link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-block text-sm font-medium text-blue-600 hover:underline"
                           >
-                            {state.actionMilestoneId === milestone.id ? 'Approving...' : 'Approve'}
-                          </Button>
+                            Open deliverable
+                          </a>
+                        ) : null}
+                      </div>
+                    ) : null}
 
-                          <Button
-                            variant="outline"
-                            onClick={() => void disputeMilestone(milestone.id)}
-                            disabled={state.actionMilestoneId === milestone.id}
-                          >
-                            {state.actionMilestoneId === milestone.id ? 'Opening...' : 'Dispute'}
-                          </Button>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
+                    {milestoneStatus === 'disputed' ? (
+                      <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                        This milestone is disputed. No actions are available until the dispute is resolved.
+                      </div>
+                    ) : null}
 
-                  {milestone.description ? (
-                    <p className="mt-4 text-sm text-muted-foreground">
-                      {milestone.description}
-                    </p>
-                  ) : null}
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="rounded-2xl bg-muted/40 p-4 text-sm">
+                        <p className="text-muted-foreground">Submitted</p>
+                        <p className="mt-1 font-medium">
+                          {milestone.submitted_at ? new Date(milestone.submitted_at).toLocaleString() : '—'}
+                        </p>
+                      </div>
 
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-2xl bg-muted/40 p-4 text-sm">
-                      <p className="text-muted-foreground">Submitted</p>
-                      <p className="mt-1 font-medium">
-                        {milestone.submitted_at ? new Date(milestone.submitted_at).toLocaleString() : '—'}
-                      </p>
-                    </div>
+                      <div className="rounded-2xl bg-muted/40 p-4 text-sm">
+                        <p className="text-muted-foreground">Approved</p>
+                        <p className="mt-1 font-medium">
+                          {milestone.approved_at ? new Date(milestone.approved_at).toLocaleString() : '—'}
+                        </p>
+                      </div>
 
-                    <div className="rounded-2xl bg-muted/40 p-4 text-sm">
-                      <p className="text-muted-foreground">Approved</p>
-                      <p className="mt-1 font-medium">
-                        {milestone.approved_at ? new Date(milestone.approved_at).toLocaleString() : '—'}
-                      </p>
-                    </div>
+                      <div className="rounded-2xl bg-muted/40 p-4 text-sm">
+                        <p className="text-muted-foreground">Released</p>
+                        <p className="mt-1 font-medium">
+                          {milestone.released_at ? new Date(milestone.released_at).toLocaleString() : '—'}
+                        </p>
+                      </div>
 
-                    <div className="rounded-2xl bg-muted/40 p-4 text-sm">
-                      <p className="text-muted-foreground">Released</p>
-                      <p className="mt-1 font-medium">
-                        {milestone.released_at ? new Date(milestone.released_at).toLocaleString() : '—'}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-muted/40 p-4 text-sm">
-                      <p className="text-muted-foreground">Disputed</p>
-                      <p className="mt-1 font-medium">
-                        {milestone.disputed_at ? new Date(milestone.disputed_at).toLocaleString() : '—'}
-                      </p>
+                      <div className="rounded-2xl bg-muted/40 p-4 text-sm">
+                        <p className="text-muted-foreground">Disputed</p>
+                        <p className="mt-1 font-medium">
+                          {milestone.disputed_at ? new Date(milestone.disputed_at).toLocaleString() : '—'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </CardContent>
       </Card>
 
-      {contract.status === 'RELEASED' || contract.status === 'COMPLETED' ? (
+      <Card className="rounded-3xl">
+        <CardHeader>
+          <CardTitle>Contract progress</CardTitle>
+          <CardDescription>Quick summary of money and delivery state.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border p-4">
+            <p className="text-sm text-muted-foreground">Milestone total</p>
+            <p className="mt-1 text-lg font-semibold">{money(milestoneTotal)} DZD</p>
+          </div>
+
+          <div className="rounded-2xl border p-4">
+            <p className="text-sm text-muted-foreground">Remaining</p>
+            <p className="mt-1 text-lg font-semibold">{money(remainingAmount)} DZD</p>
+          </div>
+
+          <div className="rounded-2xl border p-4">
+            <p className="text-sm text-muted-foreground">Status</p>
+            <p className="mt-1 text-lg font-semibold capitalize">
+              {normalizeStatus(contract.status).replaceAll('_', ' ')}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {isFinished ? (
         <Card className="rounded-3xl border-dashed">
           <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div>

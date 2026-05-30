@@ -223,8 +223,10 @@ export const contracts = {
       order: number
     }
   ) => api.post(`${API_PREFIX}/contracts/${contractId}/milestones/`, data),
-  submitMilestone: (id: number) =>
-    api.post(`${API_PREFIX}/contracts/milestones/${id}/submit/`),
+  submitMilestone: (
+    id: number,
+    data: { note?: string; submission_link?: string } = {}
+  ) => api.post(`/api/contracts/milestones/${id}/submit/`, data),
   approveMilestone: (id: number) =>
     api.post(`${API_PREFIX}/contracts/milestones/${id}/approve/`),
   disputeMilestone: (id: number) =>

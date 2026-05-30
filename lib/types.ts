@@ -218,6 +218,7 @@ export interface Milestone {
   description?: string
   currency?: string
   submission_note?: string
+  submission_link?: string
   review_note?: string
   dispute_reason?: string
 }
