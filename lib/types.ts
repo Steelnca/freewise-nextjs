@@ -217,6 +217,8 @@ export interface Milestone {
   disputed_at?: string | null
   description?: string
   currency?: string
+  revision_requested_at?: string | null
+  revision_scope?: string | null
   submission_note?: string
   submission_link?: string
   review_note?: string
@@ -231,13 +233,11 @@ export interface Contract {
   freelancer_username: string
   agreed_price: string
   deadline: string
-  status: ContractStatus
+  status: string
   milestones: Milestone[]
   created_at: string
   completed_at: string | null
-  funded_at?: string | null
-  submitted_at?: string | null
-  notes?: string
+
 }
 
 // ─── Payments ────────────────────────────────────────────────────────────────

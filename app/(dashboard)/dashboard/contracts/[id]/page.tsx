@@ -8,10 +8,12 @@ import {
   AlertTriangleIcon,
   ArrowLeftIcon,
   CalendarIcon,
+  EditIcon,
   FileTextIcon,
   HandCoinsIcon,
   PlusIcon,
   SendIcon,
+  ShieldAlertIcon,
   StarIcon,
   UserIcon,
 } from 'lucide-react'
@@ -26,13 +28,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 import CreateMilestoneDialog from '@/components/dialogs/contracts/CreateMilestoneDialog'
 import SubmitWorkDialog from '@/components/dialogs/contracts/SubmitWorkDialog'
+import RequestRevisionDialog from '@/components/dialogs/contracts/RequestRevisionDialog'
+import { toTitleCase } from '@/lib/utils'
 
 type ContractViewerRole = 'client' | 'freelancer' | null
-
-type MilestoneWithExtras = Milestone & {
-  submission_note?: string
-  submission_link?: string
-}
 
 type ProposalWithExtras = Proposal & {
   freelancer_rating?: number
@@ -42,7 +41,14 @@ type ContractDetailContract = Contract & {
   viewer_role?: ContractViewerRole
   viewer_is_client?: boolean
   viewer_is_freelancer?: boolean
-  milestones: MilestoneWithExtras[]
+  milestone_total?: string
+  remaining_amount?: string
+  funding_progress?: number
+  next_action?: string
+  next_action_milestone_id?: number | null
+  has_suspension?: boolean
+  is_funding_locked?: boolean
+  is_finished?: boolean
 }
 
 type ContractDetailState = {
@@ -52,8 +58,7 @@ type ContractDetailState = {
   actionMilestoneId: number | null
 }
 
-const money = (value: string | number) => Number(value || 0).toLocaleString('fr-DZ')
-
+const money = (value: string | number | undefined | null) => Number(value || 0).toLocaleString('fr-DZ')
 const normalizeStatus = (value?: string | null) => (value ?? '').toLowerCase()
 
 function statusTone(status: string) {
@@ -76,8 +81,53 @@ function statusTone(status: string) {
       return 'bg-slate-100 text-slate-700'
     case 'cancelled':
       return 'bg-zinc-100 text-zinc-700'
+    case 'revision_requested':
+      return 'bg-orange-100 text-orange-700'
     default:
       return 'bg-muted text-muted-foreground'
+  }
+}
+
+function nextActionMessage(action?: string | null) {
+  switch (action) {
+    case 'split_or_edit_milestones_then_fund':
+      return 'Split or edit milestones, then fund the first pending one.'
+    case 'create_milestone_then_fund':
+      return 'Create at least one milestone before funding.'
+    case 'review_submission':
+      return 'A submission is waiting for your review.'
+    case 'submit_funded_milestone':
+      return 'Submit the funded milestone.'
+    case 'submit_revision':
+      return 'A revision was requested. Update the work and resubmit.'
+    case 'review_revision_request':
+      return 'Waiting for the freelancer to deliver the requested revision.'
+    case 'waiting_for_freelancer':
+      return 'Waiting for freelancer activity.'
+    case 'waiting_for_client_funding':
+      return 'Waiting for the client to fund a milestone.'
+    case 'under_suspension':
+      return 'This contract is currently under suspension. Actions are locked.'
+    case 'completed':
+      return 'This contract is complete.'
+    case 'no_access':
+      return 'You are not part of this contract.'
+    default:
+      return 'No actions available right now.'
+  }
+}
+
+function actionTone(action?: string | null) {
+  switch (action) {
+    case 'under_dispute':
+      return 'bg-red-50 text-red-700 border-red-200'
+    case 'completed':
+      return 'bg-green-50 text-green-700 border-green-200'
+    case 'submit_revision':
+    case 'review_revision_request':
+      return 'bg-orange-50 text-orange-700 border-orange-200'
+    default:
+      return 'bg-muted/40 text-foreground border-border'
   }
 }
 
@@ -93,7 +143,8 @@ export default function ContractDetailPage() {
   })
 
   const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false)
-  const [submitDialogMilestone, setSubmitDialogMilestone] = useState<MilestoneWithExtras | null>(null)
+  const [submitDialogMilestone, setSubmitDialogMilestone] = useState<Milestone | null>(null)
+  const [revisionDialogMilestone, setRevisionDialogMilestone] = useState<Milestone | null>(null)
 
   const loadContract = async () => {
     if (!contractId || Number.isNaN(contractId)) return
@@ -148,81 +199,22 @@ export default function ContractDetailPage() {
   const acceptedProposal = state.acceptedProposal
 
   const milestones = contract?.milestones ?? []
-
   const viewerRole = contract?.viewer_role ?? null
   const isClientParty = viewerRole === 'client'
   const isFreelancerParty = viewerRole === 'freelancer'
-
+  const hasSuspension = contract?.has_suspension ?? false
+  const canEditMilestones = contract?.status === 'PENDING_FUNDING'
+  const firstPendingMilestone = milestones.find((m) => normalizeStatus(m.status) === 'pending') ?? null
+  const firstFundedMilestone = milestones.find((m) => normalizeStatus(m.status) === 'funded') ?? null
+  const activeActionMilestone = milestones.find((m) => m.id === contract?.next_action_milestone_id) ?? null
+  const milestoneTotal = contract?.milestone_total ?? '0'
+  const remainingAmount = contract?.remaining_amount ?? '0'
+  const fundingProgress = contract?.funding_progress ?? 0
+  const isFinished = contract?.is_finished ?? false
   const contractStatus = normalizeStatus(contract?.status)
-  const hasDispute =
-    contractStatus === 'disputed' || milestones.some((milestone) => normalizeStatus(milestone.status) === 'disputed')
-
-  const hasSubmitted = milestones.some((milestone) => normalizeStatus(milestone.status) === 'submitted')
-  const firstPendingMilestone = milestones.find((milestone) => normalizeStatus(milestone.status) === 'pending') ?? null
-  const firstFundedMilestone = milestones.find((milestone) => normalizeStatus(milestone.status) === 'funded') ?? null
-  const canEditMilestones = contractStatus === 'pending_funding'
-  const isFinished = contractStatus === 'released' || contractStatus === 'completed'
-
-  const milestoneTotal = useMemo(() => {
-    return milestones.reduce((sum, milestone) => sum + Number(milestone.amount || 0), 0)
-  }, [milestones])
-
-  const remainingAmount = useMemo(() => {
-    return Number(contract?.agreed_price || 0) - milestoneTotal
-  }, [contract?.agreed_price, milestoneTotal])
-
-  const nextAction = useMemo(() => {
-    if (!contract) return 'Loading contract...'
-
-    if (!viewerRole) {
-      return 'You are not a party to this contract.'
-    }
-
-    if (hasDispute) {
-      return 'This contract is in dispute. No actions are available right now.'
-    }
-
-    if (isFinished) {
-      return 'This contract is complete.'
-    }
-
-    if (isClientParty) {
-      if (canEditMilestones) {
-        return 'Split or edit milestones, then fund the first one.'
-      }
-
-      if (hasSubmitted) {
-        return 'Review the freelancer submission.'
-      }
-
-      if (firstPendingMilestone) {
-        return 'Fund the first pending milestone to start work.'
-      }
-
-      return 'Waiting for freelancer submission.'
-    }
-
-    if (isFreelancerParty) {
-      if (firstFundedMilestone) {
-        return 'Submit the funded milestone.'
-      }
-
-      return 'Waiting for the client to fund a milestone.'
-    }
-
-    return 'No actions available.'
-  }, [
-    contract,
-    viewerRole,
-    hasDispute,
-    isFinished,
-    isClientParty,
-    isFreelancerParty,
-    canEditMilestones,
-    hasSubmitted,
-    firstPendingMilestone,
-    firstFundedMilestone,
-  ])
+  const currentAction = contract?.next_action ?? 'no_access'
+  const currentActionMessage = nextActionMessage(currentAction)
+  const currentActionIsLocked = hasSuspension || isFinished || currentAction === 'no_access'
 
   const fundMilestone = async (milestoneId: number) => {
     setState((current) => ({ ...current, actionMilestoneId: milestoneId }))
@@ -240,7 +232,7 @@ export default function ContractDetailPage() {
     try {
       await contractsApi.approveMilestone(milestoneId)
       toast.success('Milestone approved.')
-      await loadContract()
+      await reloadContract()
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to approve milestone.')
     } finally {
@@ -253,7 +245,7 @@ export default function ContractDetailPage() {
     try {
       await contractsApi.disputeMilestone(milestoneId)
       toast.success('Dispute opened.')
-      await loadContract()
+      await reloadContract()
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to open dispute.')
     } finally {
@@ -265,7 +257,7 @@ export default function ContractDetailPage() {
     return (
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
         <div className="h-8 w-48 rounded-xl bg-muted" />
-        <div className="h-44 rounded-3xl bg-muted" />
+        <div className="h-40 rounded-3xl bg-muted" />
         <div className="h-60 rounded-3xl bg-muted" />
       </main>
     )
@@ -291,73 +283,102 @@ export default function ContractDetailPage() {
     )
   }
 
+  const showAcceptedProposal = isClientParty
+  const showClientWorkspace = isClientParty
+  const showFreelancerWorkspace = isFreelancerParty
+
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Button asChild variant="ghost" className="-ml-2 mb-2">
+        <div className="space-y-2">
+          <Button asChild variant="ghost" className="-ml-2">
             <Link href={ROUTES.dashboard.contracts.root}>
               <ArrowLeftIcon className="mr-2 h-4 w-4" />
               Back to contracts
             </Link>
           </Button>
 
-          <h1 className="text-3xl font-semibold tracking-tight">
-            {contract.job_title}
-          </h1>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-3xl font-semibold tracking-tight">
+                {contract.job_title}
+              </h1>
 
-          <p className="text-sm text-muted-foreground">
-            Contract #{contract.id} · {normalizeStatus(contract.status).replaceAll('_', ' ')}
-          </p>
+              <Badge className={statusTone(contract.status)}>
+                {toTitleCase(contract.status.replaceAll('_', ' '))}
+              </Badge>
+
+              {viewerRole ? (
+                <Badge variant="secondary">
+                  {viewerRole === 'client' ? 'Client workspace' : 'Freelancer workspace'}
+                </Badge>
+              ) : (
+                <Badge variant="secondary">No party access</Badge>
+              )}
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              Contract #{contract.id} · {money(contract.agreed_price)} DZD · Due{' '}
+              {new Date(contract.deadline).toLocaleDateString()}
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Badge className={statusTone(contract.status)}>
-            {normalizeStatus(contract.status).replaceAll('_', ' ')}
+          <Badge variant="outline">
+            {fundingProgress}% funded
           </Badge>
 
-          {viewerRole ? (
-            <Badge variant="secondary">
-              {viewerRole === 'client' ? 'Client workspace' : 'Freelancer workspace'}
-            </Badge>
-          ) : (
-            <Badge variant="secondary">No party access</Badge>
-          )}
-
           <Badge variant="outline">
-            {money(contract.agreed_price)} DZD
+            {milestones.length} milestone{milestones.length === 1 ? '' : 's'}
           </Badge>
         </div>
       </div>
 
-      <Card
-        className={
-          hasDispute
-            ? 'rounded-3xl border-red-200 bg-red-50/60'
-            : 'rounded-3xl border-dashed'
-        }
-      >
+      <Card className={`rounded-3xl border ${currentActionIsLocked ? 'border-red-200 bg-red-50/50' : 'border-dashed'}`}>
         <CardContent className="p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="mt-1 rounded-full bg-background p-2 shadow-sm">
-                <AlertTriangleIcon className={hasDispute ? 'h-4 w-4 text-red-600' : 'h-4 w-4 text-muted-foreground'} />
+          <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className={`mt-1 rounded-full border p-2 ${actionTone(currentAction)}`}>
+                  {hasSuspension ? (
+                    <ShieldAlertIcon className="h-4 w-4" />
+                  ) : (
+                    <AlertTriangleIcon className="h-4 w-4" />
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Next action</p>
+                  <p className="text-sm text-muted-foreground">{currentActionMessage}</p>
+                </div>
               </div>
 
-              <div>
-                <p className="text-sm font-medium">Next action</p>
-                <p className="text-sm text-muted-foreground">{nextAction}</p>
-              </div>
+              {activeActionMilestone ? (
+                <div className="rounded-2xl border bg-background/80 p-4">
+                  <p className="text-sm font-medium">Action milestone</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {activeActionMilestone.title} · {money(activeActionMilestone.amount)} DZD ·{' '}
+                    {normalizeStatus(activeActionMilestone.status).replaceAll('_', ' ')}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
-            {isClientParty && canEditMilestones && !hasDispute ? (
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setMilestoneDialogOpen(true)}>
-                  <PlusIcon className="mr-2 h-4 w-4" />
-                  Add milestone
-                </Button>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border bg-background/80 p-4">
+                <p className="text-xs text-muted-foreground">Milestone total</p>
+                <p className="mt-1 text-lg font-semibold">{money(milestoneTotal)} DZD</p>
               </div>
-            ) : null}
+              <div className="rounded-2xl border bg-background/80 p-4">
+                <p className="text-xs text-muted-foreground">Remaining</p>
+                <p className="mt-1 text-lg font-semibold">{money(remainingAmount)} DZD</p>
+              </div>
+              <div className="rounded-2xl border bg-background/80 p-4">
+                <p className="text-xs text-muted-foreground">Progress</p>
+                <p className="mt-1 text-lg font-semibold">{fundingProgress}%</p>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -388,121 +409,156 @@ export default function ContractDetailPage() {
 
         <Card className="rounded-3xl">
           <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">Milestones</p>
-            <p className="mt-2 font-medium">
-              {milestones.length} total
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {money(milestoneTotal)} DZD of {money(contract.agreed_price)} DZD used
+            <p className="text-sm text-muted-foreground">Status</p>
+            <p className="mt-2 font-medium capitalize">
+              {contractStatus.replaceAll('_', ' ')}
             </p>
           </CardContent>
         </Card>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <Card className="rounded-3xl">
-          <CardHeader>
-            <CardTitle>Accepted proposal</CardTitle>
-            <CardDescription>
-              The bid this contract was created from.
-            </CardDescription>
-          </CardHeader>
+      <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+        {showAcceptedProposal ? (
+          <Card className="rounded-3xl">
+            <CardHeader>
+              <CardTitle>Accepted proposal</CardTitle>
+              <CardDescription>
+                This is the bid the client accepted. It locked the contract price.
+              </CardDescription>
+            </CardHeader>
 
-          <CardContent>
-            {acceptedProposal ? (
-              <div className="space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <UserIcon className="h-4 w-4 text-muted-foreground" />
-                      <p className="font-medium">{acceptedProposal.freelancer_username}</p>
-                      <Badge variant="secondary">
-                        {acceptedProposal.freelancer_rating ?? 0}
-                        <StarIcon className="ml-1 h-3 w-3" />
-                      </Badge>
+            <CardContent>
+              {acceptedProposal ? (
+                <div className="space-y-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <UserIcon className="h-4 w-4 text-muted-foreground" />
+                        <p className="font-medium">{acceptedProposal.freelancer_username}</p>
+                        <Badge variant="secondary">
+                          {acceptedProposal.freelancer_rating ?? 0}
+                          <StarIcon className="ml-1 h-3 w-3" />
+                        </Badge>
+                      </div>
+
+                      <p className="text-sm text-muted-foreground">
+                        {acceptedProposal.cover_letter}
+                      </p>
                     </div>
+                  </div>
 
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {acceptedProposal.cover_letter}
-                    </p>
+                  <Separator />
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border p-4">
+                      <p className="text-xs text-muted-foreground">Bid price</p>
+                      <p className="mt-1 font-semibold">{money(acceptedProposal.proposed_price)} DZD</p>
+                    </div>
+                    <div className="rounded-2xl border p-4">
+                      <p className="text-xs text-muted-foreground">Delivery</p>
+                      <p className="mt-1 font-semibold">{acceptedProposal.delivery_days} days</p>
+                    </div>
+                    <div className="rounded-2xl border p-4">
+                      <p className="text-xs text-muted-foreground">Submitted</p>
+                      <p className="mt-1 font-semibold">
+                        {new Date(acceptedProposal.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
                 </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed p-8 text-sm text-muted-foreground">
+                  Accepted proposal not loaded.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="rounded-3xl">
+            <CardHeader>
+              <CardTitle>Contract brief</CardTitle>
+              <CardDescription>
+                The essentials you need to keep the work moving.
+              </CardDescription>
+            </CardHeader>
 
-                <Separator />
+            <CardContent className="space-y-4">
+              <div className="rounded-2xl border p-4">
+                <p className="text-sm font-medium">Project</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {contract.job_title}
+                </p>
+              </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-2xl border p-4">
-                    <p className="text-xs text-muted-foreground">Bid price</p>
-                    <p className="mt-1 font-medium">
-                      {money(acceptedProposal.proposed_price)} DZD
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border p-4">
-                    <p className="text-xs text-muted-foreground">Delivery time</p>
-                    <p className="mt-1 font-medium">{acceptedProposal.delivery_days} days</p>
-                  </div>
-                  <div className="rounded-2xl border p-4">
-                    <p className="text-xs text-muted-foreground">Submitted</p>
-                    <p className="mt-1 font-medium">
-                      {new Date(acceptedProposal.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs text-muted-foreground">Budget</p>
+                  <p className="mt-1 font-semibold">{money(contract.agreed_price)} DZD</p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs text-muted-foreground">Deadline</p>
+                  <p className="mt-1 font-semibold">
+                    {new Date(contract.deadline).toLocaleDateString()}
+                  </p>
                 </div>
               </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed p-8 text-sm text-muted-foreground">
-                No accepted proposal found yet.
+
+              <div className="rounded-2xl border p-4">
+                <p className="text-sm font-medium">What matters now</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Follow the next action above. Milestones drive funding, delivery, and review.
+                </p>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="rounded-3xl">
           <CardHeader>
             <CardTitle>
-              {viewerRole === 'freelancer'
-                ? 'Freelancer workspace'
-                : viewerRole === 'client'
-                  ? 'Client workspace'
+              {showClientWorkspace
+                ? 'Client workspace'
+                : showFreelancerWorkspace
+                  ? 'Freelancer workspace'
                   : 'Contract workspace'}
             </CardTitle>
             <CardDescription>
-              {viewerRole === 'freelancer'
-                ? 'Submit delivered work when a milestone is funded.'
-                : viewerRole === 'client'
-                  ? 'Edit milestones, fund work, and review submissions.'
-                  : 'You are not part of this contract, so actions are disabled.'}
+              {showClientWorkspace
+                ? 'Plan milestones, fund the next one, and review submissions.'
+                : showFreelancerWorkspace
+                  ? 'Watch the funded milestone, submit work, and handle revisions.'
+                  : 'You are not a party to this contract, so actions are disabled.'}
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-3">
-            {viewerRole === 'client' ? (
+            {showClientWorkspace ? (
               <>
                 <div className="rounded-2xl border p-4">
-                  <p className="text-sm font-medium">Client flow</p>
+                  <p className="text-sm font-medium">Client controls</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Split milestones before funding, then fund the first pending milestone.
+                    Edit milestones before funding starts, then fund the first pending milestone.
                   </p>
                 </div>
                 <div className="rounded-2xl border p-4">
                   <p className="text-sm font-medium">Review flow</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Once work is submitted, you can approve or dispute it from the milestone card.
+                    After submission, approve, request a revision, or dispute the milestone.
                   </p>
                 </div>
               </>
-            ) : viewerRole === 'freelancer' ? (
+            ) : showFreelancerWorkspace ? (
               <>
                 <div className="rounded-2xl border p-4">
                   <p className="text-sm font-medium">Delivery flow</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    When a milestone becomes funded, you can submit a delivery summary and link.
+                    Submit work only when the next milestone is funded or revised back to you.
                   </p>
                 </div>
                 <div className="rounded-2xl border p-4">
                   <p className="text-sm font-medium">Payout flow</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Approved milestones release escrow and move funds toward your wallet.
+                    Approved milestones release escrow and move money toward the freelancer wallet.
                   </p>
                 </div>
               </>
@@ -516,15 +572,15 @@ export default function ContractDetailPage() {
       </section>
 
       <Card className="rounded-3xl">
-        <CardHeader className="flex items-center justify-between">
+        <CardHeader className="flex items-center justify-between gap-3">
           <div>
             <CardTitle>Milestones</CardTitle>
             <CardDescription>
-              Fund, submit, approve, or dispute each phase from one place.
+              This is the delivery structure for the contract. Funding and actions follow milestone status.
             </CardDescription>
           </div>
 
-          {isClientParty && canEditMilestones && !hasDispute ? (
+          {isClientParty && canEditMilestones && !hasSuspension ? (
             <Button onClick={() => setMilestoneDialogOpen(true)}>
               <PlusIcon className="mr-2 h-4 w-4" />
               Add milestone
@@ -537,6 +593,18 @@ export default function ContractDetailPage() {
           onOpenChange={setMilestoneDialogOpen}
           contractId={contract.id}
           onCreated={reloadContract}
+        />
+
+        <RequestRevisionDialog
+          open={!!revisionDialogMilestone}
+          onOpenChange={(open) => {
+            if (!open) setRevisionDialogMilestone(null)
+          }}
+          milestoneId={revisionDialogMilestone?.id || 0}
+          onRequested={() => {
+            setRevisionDialogMilestone(null)
+            reloadContract()
+          }}
         />
 
         <SubmitWorkDialog
@@ -559,9 +627,10 @@ export default function ContractDetailPage() {
           ) : (
             milestones.map((milestone, index) => {
               const milestoneStatus = normalizeStatus(milestone.status)
-              const canFundThis = isClientParty && !hasDispute && milestoneStatus === 'pending'
-              const canSubmitThis = isFreelancerParty && !hasDispute && milestoneStatus === 'funded'
-              const canReviewThis = isClientParty && !hasDispute && milestoneStatus === 'submitted'
+              const canFundThis = isClientParty && !hasSuspension && firstPendingMilestone?.id === milestone.id
+              const canSubmitThis = isFreelancerParty && !hasSuspension && (firstFundedMilestone?.id === milestone.id || milestoneStatus === 'revision_requested')
+              const canReviewThis = isClientParty && !hasSuspension && milestoneStatus === 'submitted'
+              const isRevisionRequested = milestoneStatus === 'revision_requested'
 
               return (
                 <div key={milestone.id}>
@@ -578,9 +647,18 @@ export default function ContractDetailPage() {
                         </div>
 
                         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                          <span>Amount: <strong>{money(milestone.amount)} DZD</strong></span>
-                          <span>Order: <strong>{milestone.order}</strong></span>
-                          <span>Due: <strong>{new Date(milestone.due_date).toLocaleDateString()}</strong></span>
+                          <span className="inline-flex items-center gap-1">
+                            <FileTextIcon className="h-4 w-4" />
+                            Amount: <strong>{money(milestone.amount)} DZD</strong>
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <CalendarIcon className="h-4 w-4" />
+                            Due: <strong>{new Date(milestone.due_date).toLocaleDateString()}</strong>
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <FileTextIcon className="h-4 w-4" />
+                            Order: <strong>{milestone.order}</strong>
+                          </span>
                         </div>
                       </div>
 
@@ -601,7 +679,7 @@ export default function ContractDetailPage() {
                             disabled={state.actionMilestoneId === milestone.id}
                           >
                             <SendIcon className="mr-2 h-4 w-4" />
-                            Submit work
+                            {isRevisionRequested ? 'Submit revision' : 'Submit work'}
                           </Button>
                         ) : null}
 
@@ -612,6 +690,15 @@ export default function ContractDetailPage() {
                               disabled={state.actionMilestoneId === milestone.id}
                             >
                               {state.actionMilestoneId === milestone.id ? 'Approving...' : 'Approve'}
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              onClick={() => setRevisionDialogMilestone(milestone)}
+                              disabled={state.actionMilestoneId === milestone.id}
+                            >
+                              <EditIcon className="mr-2 h-4 w-4" />
+                              Request revision
                             </Button>
 
                             <Button
@@ -641,14 +728,31 @@ export default function ContractDetailPage() {
                           </p>
                         ) : null}
                         {milestone.submission_link ? (
-                          <a
-                            href={milestone.submission_link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-2 inline-block text-sm font-medium text-blue-600 hover:underline"
-                          >
-                            Open deliverable
-                          </a>
+                          <Button asChild variant="outline">
+                            <a
+                              href={`${process.env.NEXT_PUBLIC_API_URL}/api/contracts/milestones/${milestone.id}/deliverable/`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Open deliverable
+                            </a>
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {isRevisionRequested ? (
+                      <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-4">
+                        <p className="text-sm font-medium text-orange-700">Revision brief</p>
+                        {milestone.revision_scope ? (
+                          <p className="mt-1 text-sm text-orange-700/80">
+                            Scope: {milestone.revision_scope}
+                          </p>
+                        ) : null}
+                        {milestone.review_note ? (
+                          <p className="mt-1 text-sm text-orange-700/80">
+                            Note: {milestone.review_note}
+                          </p>
                         ) : null}
                       </div>
                     ) : null}
@@ -698,24 +802,33 @@ export default function ContractDetailPage() {
 
       <Card className="rounded-3xl">
         <CardHeader>
-          <CardTitle>Contract progress</CardTitle>
-          <CardDescription>Quick summary of money and delivery state.</CardDescription>
+          <CardTitle>Contract summary</CardTitle>
+          <CardDescription>Useful numbers at a glance.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
+        <CardContent className="grid gap-4 md:grid-cols-4">
           <div className="rounded-2xl border p-4">
-            <p className="text-sm text-muted-foreground">Milestone total</p>
-            <p className="mt-1 text-lg font-semibold">{money(milestoneTotal)} DZD</p>
+            <p className="text-sm text-muted-foreground">Milestones</p>
+            <p className="mt-1 text-lg font-semibold">{milestones.length}</p>
           </div>
 
           <div className="rounded-2xl border p-4">
-            <p className="text-sm text-muted-foreground">Remaining</p>
-            <p className="mt-1 text-lg font-semibold">{money(remainingAmount)} DZD</p>
+            <p className="text-sm text-muted-foreground">Funded</p>
+            <p className="mt-1 text-lg font-semibold">
+              {milestones.filter((m) => normalizeStatus(m.status) === 'funded').length}
+            </p>
           </div>
 
           <div className="rounded-2xl border p-4">
-            <p className="text-sm text-muted-foreground">Status</p>
-            <p className="mt-1 text-lg font-semibold capitalize">
-              {normalizeStatus(contract.status).replaceAll('_', ' ')}
+            <p className="text-sm text-muted-foreground">Submitted</p>
+            <p className="mt-1 text-lg font-semibold">
+              {milestones.filter((m) => normalizeStatus(m.status) === 'submitted').length}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border p-4">
+            <p className="text-sm text-muted-foreground">Disputed</p>
+            <p className="mt-1 text-lg font-semibold">
+              {milestones.filter((m) => normalizeStatus(m.status) === 'disputed').length}
             </p>
           </div>
         </CardContent>

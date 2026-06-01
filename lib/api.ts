@@ -231,6 +231,8 @@ export const contracts = {
     api.post(`${API_PREFIX}/contracts/milestones/${id}/approve/`),
   disputeMilestone: (id: number) =>
     api.post(`${API_PREFIX}/contracts/milestones/${id}/dispute/`),
+  requestRevisionMilestone: (id: number, data: { note?: string; revision_scope?: string } = {}) =>
+    api.post(`/contracts/milestones/${id}/request-revision/`, data),
 }
 
 // ─── Payments ────────────────────────────────────────────────────────────────
