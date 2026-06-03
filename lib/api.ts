@@ -20,6 +20,8 @@ import type {
   Service,
   ServicePackage,
   Order,
+  PaymentAttemptStatusResponse,
+  FundMilestoneResponse,
 } from './types'
 import { ROUTES } from './routes'
 
@@ -254,13 +256,9 @@ export const payments = {
     metadata?: Record<string, unknown>
   }) => api.post<Payout>(`${API_PREFIX}/payments/payouts/request/`, data),
   fundMilestone: (milestoneId: number) =>
-    api.post<{
-      checkout_url: string
-      checkout_id: string
-      milestone_id: number
-      amount: string
-      currency: string
-    }>(`${API_PREFIX}/payments/fund/${milestoneId}/`),
+    api.post<FundMilestoneResponse>(`${API_PREFIX}/payments/fund/${milestoneId}/`),
+  attemptStatus: (attemptId: string) =>
+    api.get<PaymentAttemptStatusResponse>(`${API_PREFIX}/payments/attempts/${attemptId}/status/`),
 }
 
 // ─── Collabs ─────────────────────────────────────────────────────────────────

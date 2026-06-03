@@ -227,10 +227,13 @@ export interface Milestone {
 
 export interface Contract {
   id: number
+  title: string
   job: number
   job_title: string
   client_username: string
   freelancer_username: string
+  source_label: string
+  status_label: string
   agreed_price: string
   deadline: string
   status: string
@@ -364,4 +367,39 @@ export interface PaginatedResponse<T> {
   next:     string | null
   previous: string | null
   results:  T[]
+}
+
+//
+
+export type PaymentAttemptStatusResponse = {
+  payment_attempt_id: string
+  contract_id: number
+  milestone_id: number
+  provider: string
+  checkout_id: string
+  checkout_url: string
+  internal_status: string
+  provider_status: string
+  is_final: boolean
+  retryable: boolean
+  amount: string
+  currency: string
+  provider_paid_at: string | null
+  webhook_received_at: string | null
+  webhook_processed_at: string | null
+  reconciled_at: string | null
+  settled_at: string | null
+  failure_reason: string
+}
+
+export type FundMilestoneResponse = {
+  checkout_url: string
+  checkout_id: string
+  payment_attempt_id: string
+  milestone_id: number
+  amount: string
+  currency: string
+  attempt_status: string
+  provider_status: string
+  provider: string
 }
