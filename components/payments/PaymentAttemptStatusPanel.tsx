@@ -153,21 +153,29 @@ export default function PaymentAttemptStatusPanel({
   }, [attempt, variant])
 
   const handleRetry = async () => {
-    if (!milestoneId) {
-      toast.error('Missing milestone reference.')
+    if (!attemptId) {
+      toast.error('Missing payment attempt reference.')
       return
     }
 
     setRetrying(true)
     try {
-      const { data } = await payments.fundMilestone(Number(milestoneId))
+      const { data } = await payments.retryPaymentAttempt(attemptId)
       window.location.assign(data.checkout_url)
     } catch (err: any) {
+      if (err?.response?.status === 409) {
+        toast.info(err?.response?.data?.detail || 'This milestone is already paid.')
+        if (contractId) {
+          router.push(`/dashboard/contracts/${contractId}`)
+        }
+        return
+      }
+
       toast.error(err?.response?.data?.detail || 'Failed to create a new checkout.')
     } finally {
       setRetrying(false)
     }
-  }
+}
 
   const backHref = contractId ? `/dashboard/contracts/${contractId}` : '/dashboard/contracts'
 

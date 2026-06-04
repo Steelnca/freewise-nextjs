@@ -259,6 +259,8 @@ export const payments = {
     api.post<FundMilestoneResponse>(`${API_PREFIX}/payments/fund/${milestoneId}/`),
   attemptStatus: (attemptId: string) =>
     api.get<PaymentAttemptStatusResponse>(`${API_PREFIX}/payments/attempts/${attemptId}/status/`),
+  retryPaymentAttempt: (attemptId: string) =>
+    api.post<FundMilestoneResponse>(`${API_PREFIX}/payments/attempts/${attemptId}/retry/`),
 }
 
 // ─── Collabs ─────────────────────────────────────────────────────────────────

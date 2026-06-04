@@ -36,7 +36,15 @@ type ProposalWithExtras = Proposal & {
   freelancer_rating?: number
 }
 
-type ContractDetailContract = Contract & {
+type MilestoneWithPaymentAttempt = Milestone & {
+  latest_payment_attempt_id?: string | null
+  latest_payment_attempt_status?: string | null
+  latest_payment_attempt_provider_status?: string | null
+  latest_payment_attempt_checkout_url?: string | null
+  latest_payment_attempt_retryable?: boolean
+}
+
+type ContractDetailContract = Omit<Contract, 'milestones'> & {
   viewer_role?: ContractViewerRole
   viewer_is_client?: boolean
   viewer_is_freelancer?: boolean
@@ -50,6 +58,7 @@ type ContractDetailContract = Contract & {
   has_suspension?: boolean
   is_funding_locked?: boolean
   is_finished?: boolean
+  milestones?: MilestoneWithPaymentAttempt[]
 }
 
 type ContractDetailState = {
@@ -59,10 +68,42 @@ type ContractDetailState = {
   actionMilestoneId: number | null
 }
 
+type MilestoneFundingAction =
+  | {
+      kind: 'fund'
+      label: string
+    }
+  | {
+      kind: 'continue'
+      label: string
+      checkoutUrl: string
+    }
+  | {
+      kind: 'retry'
+      label: string
+      attemptId: string
+    }
+  | null
+
 const money = (value: string | number | undefined | null) =>
   Number(value || 0).toLocaleString('fr-DZ')
 
 const normalizeStatus = (value?: string | null) => (value ?? '').toLowerCase()
+
+const OPEN_PAYMENT_STATUSES = new Set([
+  'created',
+  'redirected',
+  'pending_provider',
+  'processing',
+  'paid_provider_not_settled',
+  'reconciled',
+])
+
+const RETRYABLE_PAYMENT_STATUSES = new Set([
+  'failed',
+  'canceled',
+  'expired',
+])
 
 function contractStatusTone(status: string) {
   switch (normalizeStatus(status)) {
@@ -149,6 +190,60 @@ function actionTone(action?: string | null) {
   }
 }
 
+function getMilestoneFundingAction(
+  milestone: MilestoneWithPaymentAttempt,
+  opts: {
+    isClientParty: boolean
+    hasSuspension: boolean
+    isFinished: boolean
+    firstPendingMilestoneId: number | null
+  }
+): MilestoneFundingAction {
+  const { isClientParty, hasSuspension, isFinished, firstPendingMilestoneId } = opts
+
+  if (!isClientParty || hasSuspension || isFinished) {
+    return null
+  }
+
+  const latestStatus = normalizeStatus(milestone.latest_payment_attempt_status)
+  console.log('milestone', milestone.id, 'latest attempt status', latestStatus)
+  const hasAttempt = !!milestone.latest_payment_attempt_id
+  const isSettledAttempt = latestStatus === 'settled'
+  const isOpenAttempt = OPEN_PAYMENT_STATUSES.has(latestStatus)
+  const isRetryableAttempt =
+    milestone.latest_payment_attempt_retryable ??
+    RETRYABLE_PAYMENT_STATUSES.has(latestStatus)
+
+  if (isSettledAttempt) {
+    return null
+  }
+
+  if (isRetryableAttempt && hasAttempt) {
+    return {
+      kind: 'retry',
+      label: 'Retry fund escrow',
+      attemptId: milestone.latest_payment_attempt_id as string,
+    }
+  }
+  console.log(isOpenAttempt && milestone.latest_payment_attempt_checkout_url)
+  if (isOpenAttempt && milestone.latest_payment_attempt_checkout_url) {
+    return {
+      kind: 'continue',
+      label: 'Continue funding',
+      checkoutUrl: milestone.latest_payment_attempt_checkout_url as string,
+    }
+  }
+
+  if (!hasAttempt && firstPendingMilestoneId === milestone.id) {
+    return {
+      kind: 'fund',
+      label: 'Fund escrow',
+    }
+  }
+
+  return null
+}
+
 export default function ContractDetailPage() {
   const params = useParams<{ id?: string }>()
   const contractId = Number(params?.id)
@@ -204,15 +299,14 @@ export default function ContractDetailPage() {
     }
   }
 
-  const reloadContract = async () => {
-    await loadContract()
-  }
-
   useEffect(() => {
     loadContract()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractId])
 
+  const reloadContract = async () => {
+    await loadContract()
+  }
   const contract = state.contract
   const acceptedProposal = state.acceptedProposal
   const milestones = contract?.milestones ?? []
@@ -255,6 +349,24 @@ export default function ContractDetailPage() {
       window.location.href = data.checkout_url
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to initiate payment.')
+      setState((current) => ({ ...current, actionMilestoneId: null }))
+    }
+  }
+
+  const retryPaymentAttempt = async (milestoneId: number, attemptId: string) => {
+    setState((current) => ({ ...current, actionMilestoneId: milestoneId }))
+    try {
+      const { data } = await payments.retryPaymentAttempt(attemptId)
+      window.location.href = data.checkout_url
+    } catch (err: any) {
+      if (err?.response?.status === 409) {
+        toast.info(err?.response?.data?.detail || 'This milestone is already paid.')
+        await reloadContract()
+        return
+      }
+
+      toast.error(err?.response?.data?.detail || 'Failed to create a retry checkout.')
+    } finally {
       setState((current) => ({ ...current, actionMilestoneId: null }))
     }
   }
@@ -364,7 +476,10 @@ export default function ContractDetailPage() {
     }
 
     if (isFreelancerParty) {
-      if ((currentAction === 'submit_funded_milestone' || currentAction === 'submit_revision') && actionMilestone) {
+      if (
+        (currentAction === 'submit_funded_milestone' || currentAction === 'submit_revision') &&
+        actionMilestone
+      ) {
         return {
           label: currentAction === 'submit_revision' ? 'Submit revision' : 'Submit work',
           onClick: () => setSubmitDialogMilestone(actionMilestone),
@@ -519,9 +634,7 @@ export default function ContractDetailPage() {
         <Card className="rounded-3xl">
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Status</p>
-            <p className="mt-2 font-medium capitalize">
-              {contract.status_label}
-            </p>
+            <p className="mt-2 font-medium capitalize">{contract.status_label}</p>
           </CardContent>
         </Card>
       </section>
@@ -738,11 +851,13 @@ export default function ContractDetailPage() {
           ) : (
             milestones.map((milestone, index) => {
               const milestoneStatus = normalizeStatus(milestone.status)
-              const canFundThis =
-                isClientParty &&
-                !hasSuspension &&
-                !isFinished &&
-                firstPendingMilestoneId === milestone.id
+              const fundingAction = getMilestoneFundingAction(milestone, {
+                isClientParty,
+                hasSuspension,
+                isFinished,
+                firstPendingMilestoneId,
+              })
+
               const canSubmitThis =
                 isFreelancerParty &&
                 !hasSuspension &&
@@ -755,6 +870,7 @@ export default function ContractDetailPage() {
                 !isFinished &&
                 milestoneStatus === 'submitted'
               const isRevisionRequested = milestoneStatus === 'revision_requested'
+              const isDisputed = milestoneStatus === 'disputed'
 
               return (
                 <div key={milestone.id} id={`milestone-${milestone.id}`}>
@@ -784,10 +900,19 @@ export default function ContractDetailPage() {
                             Order: <strong>{milestone.order}</strong>
                           </span>
                         </div>
+
+                        {milestone.latest_payment_attempt_status ? (
+                          <p className="text-xs text-muted-foreground">
+                            Latest payment attempt:{' '}
+                            <span className="font-medium">
+                              {normalizeStatus(milestone.latest_payment_attempt_status).replaceAll('_', ' ')}
+                            </span>
+                          </p>
+                        ) : null}
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        {canFundThis ? (
+                        {isClientParty && fundingAction?.kind === 'fund' ? (
                           <Button
                             onClick={() => void fundMilestone(milestone.id)}
                             disabled={state.actionMilestoneId === milestone.id}
@@ -795,7 +920,37 @@ export default function ContractDetailPage() {
                             <HandCoinsIcon className="mr-2 h-4 w-4" />
                             {state.actionMilestoneId === milestone.id
                               ? 'Opening checkout...'
-                              : 'Fund milestone'}
+                              : fundingAction.label}
+                          </Button>
+                        ) : null}
+
+                        {isClientParty && fundingAction?.kind === 'continue' ? (
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              window.location.href = fundingAction.checkoutUrl
+                            }}
+                            disabled={state.actionMilestoneId === milestone.id}
+                          >
+                            <HandCoinsIcon className="mr-2 h-4 w-4" />
+                            {fundingAction.label}
+                          </Button>
+                        ) : null}
+
+                        {isClientParty && fundingAction?.kind === 'retry' ? (
+                          <Button
+                            onClick={() =>
+                              void retryPaymentAttempt(
+                                milestone.id,
+                                fundingAction.attemptId
+                              )
+                            }
+                            disabled={state.actionMilestoneId === milestone.id}
+                          >
+                            <HandCoinsIcon className="mr-2 h-4 w-4" />
+                            {state.actionMilestoneId === milestone.id
+                              ? 'Creating retry checkout...'
+                              : fundingAction.label}
                           </Button>
                         ) : null}
 
@@ -881,9 +1036,30 @@ export default function ContractDetailPage() {
                       </div>
                     ) : null}
 
-                    {milestoneStatus === 'disputed' ? (
+                    {isDisputed ? (
                       <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                         This milestone is disputed. No actions are available until the dispute is resolved.
+                      </div>
+                    ) : null}
+
+                    {milestone.latest_payment_attempt_id &&
+                    normalizeStatus(milestone.latest_payment_attempt_status) !== 'settled' ? (
+                      <div className="mt-4 rounded-2xl border bg-muted/30 p-4">
+                        <p className="text-sm font-medium">Payment attempt</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Status:{' '}
+                          <span className="font-medium">
+                            {normalizeStatus(milestone.latest_payment_attempt_status).replaceAll('_', ' ')}
+                          </span>
+                        </p>
+                        {milestone.latest_payment_attempt_provider_status ? (
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Provider:{' '}
+                            <span className="font-medium">
+                              {milestone.latest_payment_attempt_provider_status}
+                            </span>
+                          </p>
+                        ) : null}
                       </div>
                     ) : null}
 
