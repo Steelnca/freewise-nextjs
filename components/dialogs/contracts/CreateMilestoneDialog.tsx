@@ -24,7 +24,7 @@ interface CreateMilestoneDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 
-  contractId: number
+  contractPublicId: string
 
   onCreated?: () => void
 }
@@ -32,7 +32,7 @@ interface CreateMilestoneDialogProps {
 export default function CreateMilestoneDialog({
   open,
   onOpenChange,
-  contractId,
+  contractPublicId,
   onCreated,
 }: CreateMilestoneDialogProps) {
   const [loading, setLoading] = useState(false)
@@ -70,7 +70,7 @@ export default function CreateMilestoneDialog({
     setLoading(true)
 
     try {
-      await contracts.createMilestone(contractId, {
+      await contracts.createMilestone(contractPublicId, {
         title: title.trim(),
         description: description.trim(),
         amount,

@@ -204,6 +204,7 @@ export type MilestoneStatus =
 
 export interface Milestone {
   id: number
+  public_id: string
   title: string
   amount: string
   due_date: string
@@ -227,6 +228,7 @@ export interface Milestone {
 
 export interface Contract {
   id: number
+  public_id: string
   title: string
   job: number
   job_title: string

@@ -21,14 +21,14 @@ import { contracts as contractsApi } from '@/lib/api'
 interface SubmitWorkDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  milestoneId: number
+  milestonePublicId: string
   onSubmitted?: () => void
 }
 
 export default function SubmitWorkDialog({
   open,
   onOpenChange,
-  milestoneId,
+  milestonePublicId,
   onSubmitted,
 }: SubmitWorkDialogProps) {
   const [loading, setLoading] = useState(false)
@@ -43,7 +43,7 @@ export default function SubmitWorkDialog({
   const handleSubmit = async () => {
     setLoading(true)
     try {
-      await contractsApi.submitMilestone(milestoneId, {
+      await contractsApi.submitMilestone(milestonePublicId, {
         note: note.trim(),
         submission_link: submissionLink.trim(),
       })

@@ -139,7 +139,7 @@ function getContractPrimaryAction(contract: Contract, mode: 'client' | 'freelanc
 
   if (normalized === 'pending_funding') {
     if (mode === 'client' && pending) {
-      return { label: 'Fund escrow', kind: 'fund' as const, milestoneId: pending.id }
+      return { label: 'Fund escrow', kind: 'fund' as const, milestonePublicId: pending.public_id }
     }
     return { label: 'Open details', kind: 'detail' as const }
   }
@@ -173,7 +173,7 @@ export default function ContractsPage() {
   const [reviewTarget, setReviewTarget] = useState<Contract | null>(null)
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' })
   const [submittingReview, setSubmittingReview] = useState(false)
-  const [busyMilestoneId, setBusyMilestoneId] = useState<number | null>(null)
+  const [busyMilestonePublicId, setBusyMilestonePublicId] = useState<string | null>(null)
 
   const reload = async () => {
     setLoading(true)
@@ -191,53 +191,53 @@ export default function ContractsPage() {
     void reload()
   }, [])
 
-  const handleFundMilestone = async (milestoneId: number) => {
-    setBusyMilestoneId(milestoneId)
+  const handleFundMilestone = async (milestonePublicId: string) => {
+    setBusyMilestonePublicId(milestonePublicId)
     try {
-      const { data } = await payments.fundMilestone(milestoneId)
+      const { data } = await payments.fundMilestone(milestonePublicId)
       window.location.href = data.checkout_url
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to initiate payment.')
-      setBusyMilestoneId(null)
+      setBusyMilestonePublicId(null)
     }
   }
 
-  const handleSubmitMilestone = async (milestoneId: number) => {
-    setBusyMilestoneId(milestoneId)
+  const handleSubmitMilestone = async (milestonePublicId: string) => {
+    setBusyMilestonePublicId(milestonePublicId)
     try {
-      await contractsApi.submitMilestone(milestoneId)
+      await contractsApi.submitMilestone(milestonePublicId)
       toast.success('Milestone submitted for review!')
       await reload()
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to submit milestone.')
     } finally {
-      setBusyMilestoneId(null)
+      setBusyMilestonePublicId(null)
     }
   }
 
-  const handleApproveMilestone = async (milestoneId: number) => {
-    setBusyMilestoneId(milestoneId)
+  const handleApproveMilestone = async (milestonePublicId: string) => {
+    setBusyMilestonePublicId(milestonePublicId)
     try {
-      await contractsApi.approveMilestone(milestoneId)
+      await contractsApi.approveMilestone(milestonePublicId)
       toast.success('Milestone approved! Payout queued.')
       await reload()
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to approve milestone.')
     } finally {
-      setBusyMilestoneId(null)
+      setBusyMilestonePublicId(null)
     }
   }
 
-  const handleDisputeMilestone = async (milestoneId: number) => {
-    setBusyMilestoneId(milestoneId)
+  const handleDisputeMilestone = async (milestonePublicId: string) => {
+    setBusyMilestonePublicId(milestonePublicId)
     try {
-      await contractsApi.disputeMilestone(milestoneId)
+      await contractsApi.disputeMilestone(milestonePublicId)
       toast.success('Dispute opened. Platform will review.')
       await reload()
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to open dispute.')
     } finally {
-      setBusyMilestoneId(null)
+      setBusyMilestonePublicId(null)
     }
   }
 
@@ -246,7 +246,7 @@ export default function ContractsPage() {
 
     setSubmittingReview(true)
     try {
-      await reviewsApi.submit(reviewTarget.id, {
+      await reviewsApi.submit(reviewTarget.public_id, {
         rating: reviewForm.rating,
         comment: reviewForm.comment,
       })
@@ -260,8 +260,8 @@ export default function ContractsPage() {
     }
   }
 
-  const openDetails = (contractId: number) => {
-    router.push(ROUTES.dashboard.contracts.contractDetail(contractId))
+  const openDetails = (contractPublicId: string) => {
+    router.push(ROUTES.dashboard.contracts.contractDetail(contractPublicId))
   }
 
   const contractCountLabel = useMemo(() => {
@@ -317,18 +317,18 @@ export default function ContractsPage() {
             const canQuickSubmit =
               mode === 'freelancer' &&
               (funded || contract.milestones.some((m) => statusKey(m.status) === 'revision_requested'))
-            const cardBusy = busyMilestoneId !== null
+            const cardBusy = busyMilestonePublicId !== null
 
             return (
               <Card
                 key={contract.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => openDetails(contract.id)}
+                onClick={() => openDetails(contract.public_id)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault()
-                    openDetails(contract.id)
+                    openDetails(contract.public_id)
                   }
                 }}
                 className="group cursor-pointer overflow-hidden rounded-3xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -385,7 +385,7 @@ export default function ContractsPage() {
                           variant="outline"
                           onClick={(event) => {
                             event.stopPropagation()
-                            openDetails(contract.id)
+                            openDetails(contract.public_id)
                           }}
                         >
                           Open details
@@ -470,7 +470,7 @@ export default function ContractsPage() {
                             onClick={(event) => {
                               event.stopPropagation()
                               if (pending) {
-                                void handleFundMilestone(pending.id)
+                                void handleFundMilestone(pending.public_id)
                               }
                             }}
                             disabled={cardBusy}
@@ -486,7 +486,7 @@ export default function ContractsPage() {
                             onClick={(event) => {
                               event.stopPropagation()
                               if (submitted) {
-                                void handleSubmitMilestone(submitted.id)
+                                void handleSubmitMilestone(submitted.public_id)
                                 return
                               }
 
@@ -494,7 +494,7 @@ export default function ContractsPage() {
                                 (m) => statusKey(m.status) === 'revision_requested'
                               )
                               if (revisionRequested) {
-                                void handleSubmitMilestone(revisionRequested.id)
+                                void handleSubmitMilestone(revisionRequested.public_id)
                               }
                             }}
                             disabled={cardBusy}

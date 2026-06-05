@@ -20,14 +20,14 @@ import { contracts as contractsApi } from '@/lib/api'
 interface RequestRevisionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  milestoneId: number
+  milestonePublicId: string
   onRequested?: () => void
 }
 
 export default function RequestRevisionDialog({
   open,
   onOpenChange,
-  milestoneId,
+  milestonePublicId,
   onRequested,
 }: RequestRevisionDialogProps) {
   const [loading, setLoading] = useState(false)
@@ -47,7 +47,7 @@ export default function RequestRevisionDialog({
 
     setLoading(true)
     try {
-      await contractsApi.requestRevisionMilestone(milestoneId, {
+      await contractsApi.requestRevisionMilestone(milestonePublicId, {
         note: note.trim(),
         revision_scope: revisionScope.trim(),
       })

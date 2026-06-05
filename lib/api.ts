@@ -214,9 +214,9 @@ export const orders = {
 
 export const contracts = {
   list: () => api.get<Contract[]>(`${API_PREFIX}/contracts/`),
-  get: (id: number) => api.get<Contract>(`${API_PREFIX}/contracts/${id}/`),
+  get: (publicId: string) => api.get<Contract>(`${API_PREFIX}/contracts/${encodeURIComponent(publicId)}/`),
   createMilestone: (
-    contractId: number,
+    contractPublicId: string,
     data: {
       title: string
       description?: string
@@ -224,17 +224,19 @@ export const contracts = {
       due_date: string
       order: number
     }
-  ) => api.post(`${API_PREFIX}/contracts/${contractId}/milestones/`, data),
+  ) => api.post(`${API_PREFIX}/contracts/${contractPublicId}/milestones/`, data),
   submitMilestone: (
-    id: number,
+    publicId: string,
     data: { note?: string; submission_link?: string } = {}
-  ) => api.post(`/api/contracts/milestones/${id}/submit/`, data),
-  approveMilestone: (id: number) =>
-    api.post(`${API_PREFIX}/contracts/milestones/${id}/approve/`),
-  disputeMilestone: (id: number) =>
-    api.post(`${API_PREFIX}/contracts/milestones/${id}/dispute/`),
-  requestRevisionMilestone: (id: number, data: { note?: string; revision_scope?: string } = {}) =>
-    api.post(`/contracts/milestones/${id}/request-revision/`, data),
+  ) => api.post(`/api/contracts/milestones/${publicId}/submit/`, data),
+  approveMilestone: (publicId: string) =>
+    api.post(`${API_PREFIX}/contracts/milestones/${publicId}/approve/`),
+  disputeMilestone: (publicId: string) =>
+    api.post(`${API_PREFIX}/contracts/milestones/${publicId}/dispute/`),
+  requestRevisionMilestone: (publicId: string, data: { note?: string; revision_scope?: string } = {}) =>
+    api.post(`/contracts/milestones/${publicId}/request-revision/`, data),
+  deliverable: (publicId: string) =>
+    api.get(`/contracts/milestones/${publicId}/deliverable/`),
 }
 
 // ─── Payments ────────────────────────────────────────────────────────────────
@@ -255,8 +257,8 @@ export const payments = {
     description?: string
     metadata?: Record<string, unknown>
   }) => api.post<Payout>(`${API_PREFIX}/payments/payouts/request/`, data),
-  fundMilestone: (milestoneId: number) =>
-    api.post<FundMilestoneResponse>(`${API_PREFIX}/payments/fund/${milestoneId}/`),
+  fundMilestone: (milestonePublicId: string) =>
+    api.post<FundMilestoneResponse>(`${API_PREFIX}/payments/fund/${milestonePublicId}/`),
   attemptStatus: (attemptId: string) =>
     api.get<PaymentAttemptStatusResponse>(`${API_PREFIX}/payments/attempts/${attemptId}/status/`),
   retryPaymentAttempt: (attemptId: string) =>
@@ -280,8 +282,8 @@ export const collabs = {
 // ─── Reviews ─────────────────────────────────────────────────────────────────
 
 export const reviews = {
-  submit: (contractId: number, data: { rating: number; comment: string }) =>
-    api.post<Review>(`${API_PREFIX}/reviews/${contractId}/`, data),
+  submit: (contractPublicId: string, data: { rating: number; comment: string }) =>
+    api.post<Review>(`${API_PREFIX}/reviews/${contractPublicId}/`, data),
   freelancer: (slug: string) =>
     api.get<Review[]>(`${API_PREFIX}/reviews/freelancer/${slug}/`),
   client: (slug: string) =>

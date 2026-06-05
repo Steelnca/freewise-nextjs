@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
   AlertTriangleIcon,
@@ -51,10 +51,10 @@ type ContractDetailContract = Omit<Contract, 'milestones'> & {
   milestone_total?: string
   remaining_amount?: string
   funding_progress?: number
-  first_pending_milestone_id?: number | null
-  first_funded_milestone_id?: number | null
+  first_pending_milestone_public_id?: string | null
+  first_funded_milestone_public_id?: string | null
   next_action?: string
-  next_action_milestone_id?: number | null
+  next_action_milestone_public_id?: string | null
   has_suspension?: boolean
   is_funding_locked?: boolean
   is_finished?: boolean
@@ -65,7 +65,7 @@ type ContractDetailState = {
   contract: ContractDetailContract | null
   acceptedProposal: ProposalWithExtras | null
   loading: boolean
-  actionMilestoneId: number | null
+  actionMilestonePublicId: string | null
 }
 
 type MilestoneFundingAction =
@@ -196,17 +196,17 @@ function getMilestoneFundingAction(
     isClientParty: boolean
     hasSuspension: boolean
     isFinished: boolean
-    firstPendingMilestoneId: number | null
+    firstPendingMilestonePublicId: string | null
   }
 ): MilestoneFundingAction {
-  const { isClientParty, hasSuspension, isFinished, firstPendingMilestoneId } = opts
+  const { isClientParty, hasSuspension, isFinished, firstPendingMilestonePublicId } = opts
 
   if (!isClientParty || hasSuspension || isFinished) {
     return null
   }
 
   const latestStatus = normalizeStatus(milestone.latest_payment_attempt_status)
-  console.log('milestone', milestone.id, 'latest attempt status', latestStatus)
+  console.log('milestone', milestone.public_id, 'latest attempt status', latestStatus)
   const hasAttempt = !!milestone.latest_payment_attempt_id
   const isSettledAttempt = latestStatus === 'settled'
   const isOpenAttempt = OPEN_PAYMENT_STATUSES.has(latestStatus)
@@ -234,7 +234,7 @@ function getMilestoneFundingAction(
     }
   }
 
-  if (!hasAttempt && firstPendingMilestoneId === milestone.id) {
+  if (!hasAttempt && firstPendingMilestonePublicId === milestone.public_id) {
     return {
       kind: 'fund',
       label: 'Fund escrow',
@@ -245,14 +245,15 @@ function getMilestoneFundingAction(
 }
 
 export default function ContractDetailPage() {
-  const params = useParams<{ id?: string }>()
-  const contractId = Number(params?.id)
+  const params = useParams<{ id?: string }>() // id is the contract public_id, not the internal database id
+  const contractPublicId = String(params?.id)
+  const Router = useRouter()
 
   const [state, setState] = useState<ContractDetailState>({
     contract: null,
     acceptedProposal: null,
     loading: true,
-    actionMilestoneId: null,
+    actionMilestonePublicId: null,
   })
 
   const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false)
@@ -260,12 +261,12 @@ export default function ContractDetailPage() {
   const [revisionDialogMilestone, setRevisionDialogMilestone] = useState<Milestone | null>(null)
 
   const loadContract = async () => {
-    if (!contractId || Number.isNaN(contractId)) return
+    if (!contractPublicId) return
 
     setState((current) => ({ ...current, loading: true }))
 
     try {
-      const contractRes = await contractsApi.get(contractId)
+      const contractRes = await contractsApi.get(contractPublicId)
       const contract = contractRes.data as ContractDetailContract
 
       let acceptedProposal: ProposalWithExtras | null = null
@@ -286,7 +287,7 @@ export default function ContractDetailPage() {
         contract,
         acceptedProposal,
         loading: false,
-        actionMilestoneId: null,
+        actionMilestonePublicId: null,
       })
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to load contract.')
@@ -294,7 +295,7 @@ export default function ContractDetailPage() {
         contract: null,
         acceptedProposal: null,
         loading: false,
-        actionMilestoneId: null,
+        actionMilestonePublicId: null,
       })
     }
   }
@@ -302,7 +303,7 @@ export default function ContractDetailPage() {
   useEffect(() => {
     loadContract()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contractId])
+  }, [contractPublicId])
 
   const reloadContract = async () => {
     await loadContract()
@@ -318,14 +319,14 @@ export default function ContractDetailPage() {
   const isFundingLocked = contract?.is_funding_locked ?? false
   const isFinished = contract?.is_finished ?? false
 
-  const firstPendingMilestoneId = contract?.first_pending_milestone_id ?? null
-  const firstFundedMilestoneId = contract?.first_funded_milestone_id ?? null
+  const firstPendingMilestonePublicId = contract?.first_pending_milestone_public_id ?? null
+  const firstFundedMilestonePublicId = contract?.first_funded_milestone_public_id ?? null
   const actionMilestone =
-    milestones.find((m) => m.id === contract?.next_action_milestone_id) ?? null
+    milestones.find((m) => m.public_id === contract?.next_action_milestone_public_id) ?? null
   const firstPendingMilestone =
-    milestones.find((m) => m.id === firstPendingMilestoneId) ?? null
+    milestones.find((m) => m.public_id === firstPendingMilestonePublicId) ?? null
   const firstFundedMilestone =
-    milestones.find((m) => m.id === firstFundedMilestoneId) ?? null
+    milestones.find((m) => m.public_id === firstFundedMilestonePublicId) ?? null
 
   const contractTitle =
     contract?.title || contract?.job_title || contract?.source_label || `Contract #${contract?.id ?? ''}`
@@ -342,19 +343,19 @@ export default function ContractDetailPage() {
   const showClientWorkspace = isClientParty
   const showFreelancerWorkspace = isFreelancerParty
 
-  const fundMilestone = async (milestoneId: number) => {
-    setState((current) => ({ ...current, actionMilestoneId: milestoneId }))
+  const fundMilestone = async (milestonePublicId: string) => {
+    setState((current) => ({ ...current, actionMilestonePublicId: milestonePublicId }))
     try {
-      const { data } = await payments.fundMilestone(milestoneId)
+      const { data } = await payments.fundMilestone(milestonePublicId)
       window.location.href = data.checkout_url
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to initiate payment.')
-      setState((current) => ({ ...current, actionMilestoneId: null }))
+      setState((current) => ({ ...current, actionMilestonePublicId: null }))
     }
   }
 
-  const retryPaymentAttempt = async (milestoneId: number, attemptId: string) => {
-    setState((current) => ({ ...current, actionMilestoneId: milestoneId }))
+  const retryPaymentAttempt = async (milestonePublicId: string, attemptId: string) => {
+    setState((current) => ({ ...current, actionMilestonePublicId: milestonePublicId }))
     try {
       const { data } = await payments.retryPaymentAttempt(attemptId)
       window.location.href = data.checkout_url
@@ -367,34 +368,47 @@ export default function ContractDetailPage() {
 
       toast.error(err?.response?.data?.detail || 'Failed to create a retry checkout.')
     } finally {
-      setState((current) => ({ ...current, actionMilestoneId: null }))
+      setState((current) => ({ ...current, actionMilestonePublicId: null }))
     }
   }
 
-  const approveMilestone = async (milestoneId: number) => {
-    setState((current) => ({ ...current, actionMilestoneId: milestoneId }))
+  const approveMilestone = async (milestonePublicId: string) => {
+    setState((current) => ({ ...current, actionMilestonePublicId: milestonePublicId }))
     try {
-      await contractsApi.approveMilestone(milestoneId)
+      await contractsApi.approveMilestone(milestonePublicId)
       toast.success('Milestone approved.')
       await reloadContract()
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to approve milestone.')
     } finally {
-      setState((current) => ({ ...current, actionMilestoneId: null }))
+      setState((current) => ({ ...current, actionMilestonePublicId: null }))
     }
   }
 
-  const disputeMilestone = async (milestoneId: number) => {
-    setState((current) => ({ ...current, actionMilestoneId: milestoneId }))
+  const disputeMilestone = async (milestonePublicId: string) => {
+    setState((current) => ({ ...current, actionMilestonePublicId: milestonePublicId }))
     try {
-      await contractsApi.disputeMilestone(milestoneId)
+      await contractsApi.disputeMilestone(milestonePublicId)
       toast.success('Dispute opened.')
       await reloadContract()
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to open dispute.')
     } finally {
-      setState((current) => ({ ...current, actionMilestoneId: null }))
+      setState((current) => ({ ...current, actionMilestonePublicId: null }))
     }
+  }
+
+  const handleDeliverableLink = (milestone: Milestone) => {
+    contractsApi.deliverable(milestone.public_id)
+      .then((res) => {
+        Router.push(res.data.url)
+      })
+      .catch((err: any) => {
+        toast.error(err?.response?.data?.detail || 'Failed to get deliverable link.')
+      })
+      .finally(() => {
+        setState((current) => ({ ...current, actionMilestonePublicId: null }))
+      })
   }
 
   if (state.loading) {
@@ -442,7 +456,7 @@ export default function ContractDetailPage() {
         if (firstPendingMilestone) {
           return {
             label: 'Fund first milestone',
-            onClick: () => void fundMilestone(firstPendingMilestone.id),
+            onClick: () => void fundMilestone(firstPendingMilestone.public_id),
           }
         }
 
@@ -456,7 +470,7 @@ export default function ContractDetailPage() {
         return {
           label: 'Review below',
           onClick: () =>
-            document.getElementById(`milestone-${actionMilestone.id}`)?.scrollIntoView({
+            document.getElementById(`milestone-${actionMilestone.public_id}`)?.scrollIntoView({
               behavior: 'smooth',
               block: 'start',
             }),
@@ -467,7 +481,7 @@ export default function ContractDetailPage() {
         return {
           label: 'Open revision milestone',
           onClick: () =>
-            document.getElementById(`milestone-${actionMilestone.id}`)?.scrollIntoView({
+            document.getElementById(`milestone-${actionMilestone.public_id}`)?.scrollIntoView({
               behavior: 'smooth',
               block: 'start',
             }),
@@ -535,7 +549,7 @@ export default function ContractDetailPage() {
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Contract #{contract.id} · {money(contract.agreed_price)} DZD · Due{' '}
+              Contract #{contract.public_id} · {money(contract.agreed_price)} DZD · Due{' '}
               {new Date(contract.deadline).toLocaleDateString()}
             </p>
           </div>
@@ -710,7 +724,7 @@ export default function ContractDetailPage() {
               <div className="rounded-2xl border p-4">
                 <p className="text-sm font-medium">Project</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {contract.job_title || contract.source_label || contract.title || `Contract #${contract.id}`}
+                  {contract.job_title || contract.source_label || contract.title || `Contract #${contract.public_id}`}
                 </p>
               </div>
 
@@ -815,7 +829,7 @@ export default function ContractDetailPage() {
         <CreateMilestoneDialog
           open={milestoneDialogOpen}
           onOpenChange={setMilestoneDialogOpen}
-          contractId={contract.id}
+          contractPublicId={contract.public_id}
           onCreated={reloadContract}
         />
 
@@ -824,7 +838,7 @@ export default function ContractDetailPage() {
           onOpenChange={(open) => {
             if (!open) setRevisionDialogMilestone(null)
           }}
-          milestoneId={revisionDialogMilestone?.id || 0}
+          milestonePublicId={revisionDialogMilestone?.public_id ?? ''}
           onRequested={() => {
             setRevisionDialogMilestone(null)
             reloadContract()
@@ -836,7 +850,7 @@ export default function ContractDetailPage() {
           onOpenChange={(open) => {
             if (!open) setSubmitDialogMilestone(null)
           }}
-          milestoneId={submitDialogMilestone?.id || 0}
+          milestonePublicId={submitDialogMilestone?.public_id ?? ''}
           onSubmitted={() => {
             setSubmitDialogMilestone(null)
             reloadContract()
@@ -855,14 +869,14 @@ export default function ContractDetailPage() {
                 isClientParty,
                 hasSuspension,
                 isFinished,
-                firstPendingMilestoneId,
+                firstPendingMilestonePublicId,
               })
 
               const canSubmitThis =
                 isFreelancerParty &&
                 !hasSuspension &&
                 !isFinished &&
-                (firstFundedMilestoneId === milestone.id ||
+                (firstFundedMilestonePublicId === milestone.public_id ||
                   milestoneStatus === 'revision_requested')
               const canReviewThis =
                 isClientParty &&
@@ -873,7 +887,7 @@ export default function ContractDetailPage() {
               const isDisputed = milestoneStatus === 'disputed'
 
               return (
-                <div key={milestone.id} id={`milestone-${milestone.id}`}>
+                <div key={milestone.public_id} id={`milestone-${milestone.public_id}`}>
                   {index > 0 ? <Separator className="my-4" /> : null}
 
                   <div className="rounded-3xl border p-5">
@@ -914,11 +928,11 @@ export default function ContractDetailPage() {
                       <div className="flex flex-wrap gap-2">
                         {isClientParty && fundingAction?.kind === 'fund' ? (
                           <Button
-                            onClick={() => void fundMilestone(milestone.id)}
-                            disabled={state.actionMilestoneId === milestone.id}
+                            onClick={() => void fundMilestone(milestone.public_id)}
+                            disabled={state.actionMilestonePublicId === milestone.public_id}
                           >
                             <HandCoinsIcon className="mr-2 h-4 w-4" />
-                            {state.actionMilestoneId === milestone.id
+                            {state.actionMilestonePublicId === milestone.public_id
                               ? 'Opening checkout...'
                               : fundingAction.label}
                           </Button>
@@ -930,7 +944,7 @@ export default function ContractDetailPage() {
                             onClick={() => {
                               window.location.href = fundingAction.checkoutUrl
                             }}
-                            disabled={state.actionMilestoneId === milestone.id}
+                            disabled={state.actionMilestonePublicId === milestone.public_id}
                           >
                             <HandCoinsIcon className="mr-2 h-4 w-4" />
                             {fundingAction.label}
@@ -941,14 +955,14 @@ export default function ContractDetailPage() {
                           <Button
                             onClick={() =>
                               void retryPaymentAttempt(
-                                milestone.id,
+                                milestone.public_id,
                                 fundingAction.attemptId
                               )
                             }
-                            disabled={state.actionMilestoneId === milestone.id}
+                            disabled={state.actionMilestonePublicId === milestone.public_id}
                           >
                             <HandCoinsIcon className="mr-2 h-4 w-4" />
-                            {state.actionMilestoneId === milestone.id
+                            {state.actionMilestonePublicId === milestone.public_id
                               ? 'Creating retry checkout...'
                               : fundingAction.label}
                           </Button>
@@ -957,7 +971,7 @@ export default function ContractDetailPage() {
                         {canSubmitThis ? (
                           <Button
                             onClick={() => setSubmitDialogMilestone(milestone)}
-                            disabled={state.actionMilestoneId === milestone.id}
+                            disabled={state.actionMilestonePublicId === milestone.public_id}
                           >
                             <SendIcon className="mr-2 h-4 w-4" />
                             {isRevisionRequested ? 'Submit revision' : 'Submit work'}
@@ -967,16 +981,16 @@ export default function ContractDetailPage() {
                         {canReviewThis ? (
                           <>
                             <Button
-                              onClick={() => void approveMilestone(milestone.id)}
-                              disabled={state.actionMilestoneId === milestone.id}
+                              onClick={() => void approveMilestone(milestone.public_id)}
+                              disabled={state.actionMilestonePublicId === milestone.public_id}
                             >
-                              {state.actionMilestoneId === milestone.id ? 'Approving...' : 'Approve'}
+                              {state.actionMilestonePublicId === milestone.public_id ? 'Approving...' : 'Approve'}
                             </Button>
 
                             <Button
                               variant="outline"
                               onClick={() => setRevisionDialogMilestone(milestone)}
-                              disabled={state.actionMilestoneId === milestone.id}
+                              disabled={state.actionMilestonePublicId === milestone.public_id}
                             >
                               <EditIcon className="mr-2 h-4 w-4" />
                               Request revision
@@ -984,10 +998,10 @@ export default function ContractDetailPage() {
 
                             <Button
                               variant="outline"
-                              onClick={() => void disputeMilestone(milestone.id)}
-                              disabled={state.actionMilestoneId === milestone.id}
+                              onClick={() => void disputeMilestone(milestone.public_id)}
+                              disabled={state.actionMilestonePublicId === milestone.public_id}
                             >
-                              {state.actionMilestoneId === milestone.id ? 'Opening...' : 'Dispute'}
+                              {state.actionMilestonePublicId === milestone.public_id ? 'Opening...' : 'Dispute'}
                             </Button>
                           </>
                         ) : null}
@@ -1009,7 +1023,7 @@ export default function ContractDetailPage() {
                         {milestone.submission_link ? (
                           <Button asChild variant="outline" className="mt-3">
                             <a
-                              href={`${process.env.NEXT_PUBLIC_API_URL}/api/contracts/milestones/${milestone.id}/deliverable/`}
+                              onClick={() => handleDeliverableLink(milestone)}
                               target="_blank"
                               rel="noreferrer"
                             >
