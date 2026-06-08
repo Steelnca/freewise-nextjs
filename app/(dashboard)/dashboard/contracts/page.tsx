@@ -63,7 +63,7 @@ function milestoneTone(status: string) {
 }
 
 function titleFromContract(contract: Contract) {
-  return contract.job_title || contract.title || `Contract #${contract.id}`
+  return contract.job_title || contract.title || `Contract #${contract.public_id}`
 }
 
 function firstMilestone(contract: Contract, status: string) {
@@ -321,7 +321,7 @@ export default function ContractsPage() {
 
             return (
               <Card
-                key={contract.id}
+                key={contract.public_id}
                 role="button"
                 tabIndex={0}
                 onClick={() => openDetails(contract.public_id)}
@@ -433,7 +433,7 @@ export default function ContractsPage() {
                     {contract.milestones?.length ? (
                       <div className="space-y-2 rounded-2xl border bg-muted/20 p-4">
                         {contract.milestones.slice(0, 3).map((milestone) => (
-                          <div key={milestone.id} className="flex items-center justify-between gap-3">
+                          <div key={milestone.public_id} className="flex items-center justify-between gap-3">
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium">{milestone.title}</p>
                               <p className="text-xs text-muted-foreground">

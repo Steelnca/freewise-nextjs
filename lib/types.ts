@@ -171,7 +171,7 @@ export interface Order {
   freelancer_username: string
   requirements:        string
   status:              OrderStatus
-  contract_id:         number | null
+  contract_public_id:  string | null
   created_at:          string
 }
 
@@ -223,6 +223,7 @@ export interface Milestone {
   submission_note?: string
   submission_link?: string
   review_note?: string
+  revision_note?: string
   dispute_reason?: string
 }
 
@@ -375,8 +376,8 @@ export interface PaginatedResponse<T> {
 
 export type PaymentAttemptStatusResponse = {
   payment_attempt_id: string
-  contract_id: number
-  milestone_id: number
+  contract_public_id: string
+  milestone_public_id: string
   provider: string
   checkout_id: string
   checkout_url: string
@@ -398,7 +399,7 @@ export type FundMilestoneResponse = {
   checkout_url: string
   checkout_id: string
   payment_attempt_id: string
-  milestone_id: number
+  milestone_public_id: string
   amount: string
   currency: string
   attempt_status: string

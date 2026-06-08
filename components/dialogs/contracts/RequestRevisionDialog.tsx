@@ -31,16 +31,16 @@ export default function RequestRevisionDialog({
   onRequested,
 }: RequestRevisionDialogProps) {
   const [loading, setLoading] = useState(false)
-  const [note, setNote] = useState('')
+  const [revisionNote, setRevisionNote] = useState('')
   const [revisionScope, setRevisionScope] = useState('')
 
   const resetForm = () => {
-    setNote('')
+    setRevisionNote('')
     setRevisionScope('')
   }
 
   const handleSubmit = async () => {
-    if (!note.trim()) {
+    if (!revisionNote.trim()) {
       toast.error('Please add a revision note.')
       return
     }
@@ -48,7 +48,7 @@ export default function RequestRevisionDialog({
     setLoading(true)
     try {
       await contractsApi.requestRevisionMilestone(milestonePublicId, {
-        note: note.trim(),
+        revision_note: revisionNote.trim(),
         revision_scope: revisionScope.trim(),
       })
 
@@ -89,8 +89,8 @@ export default function RequestRevisionDialog({
             <Textarea
               id="revision-note"
               placeholder="What should be changed?"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
+              value={revisionNote}
+              onChange={(e) => setRevisionNote(e.target.value)}
               rows={6}
             />
           </div>

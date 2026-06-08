@@ -228,15 +228,17 @@ export const contracts = {
   submitMilestone: (
     publicId: string,
     data: { note?: string; submission_link?: string } = {}
-  ) => api.post(`/api/contracts/milestones/${publicId}/submit/`, data),
+  ) => api.post(`${API_PREFIX}/contracts/milestones/${publicId}/submit/`, data),
   approveMilestone: (publicId: string) =>
     api.post(`${API_PREFIX}/contracts/milestones/${publicId}/approve/`),
   disputeMilestone: (publicId: string) =>
     api.post(`${API_PREFIX}/contracts/milestones/${publicId}/dispute/`),
-  requestRevisionMilestone: (publicId: string, data: { note?: string; revision_scope?: string } = {}) =>
-    api.post(`/contracts/milestones/${publicId}/request-revision/`, data),
+  requestRevisionMilestone: (
+    publicId: string,
+    data: { revision_note?: string; revision_scope?: string } = {}
+  ) => api.post(`${API_PREFIX}/contracts/milestones/${publicId}/request-revision/`, data),
   deliverable: (publicId: string) =>
-    api.get(`/contracts/milestones/${publicId}/deliverable/`),
+    api.get(`${API_PREFIX}/contracts/milestones/${publicId}/deliverable/`),
 }
 
 // ─── Payments ────────────────────────────────────────────────────────────────
@@ -258,11 +260,13 @@ export const payments = {
     metadata?: Record<string, unknown>
   }) => api.post<Payout>(`${API_PREFIX}/payments/payouts/request/`, data),
   fundMilestone: (milestonePublicId: string) =>
-    api.post<FundMilestoneResponse>(`${API_PREFIX}/payments/fund/${milestonePublicId}/`),
+    api.post<FundMilestoneResponse>(`${API_PREFIX}/payments/milestones/${milestonePublicId}/fund/`),
+  retryFundMilestone: (milestonePublicId: string) =>
+    api.post<FundMilestoneResponse>(`${API_PREFIX}/payments/milestones/${milestonePublicId}/retry/`),
   attemptStatus: (attemptId: string) =>
     api.get<PaymentAttemptStatusResponse>(`${API_PREFIX}/payments/attempts/${attemptId}/status/`),
-  retryPaymentAttempt: (attemptId: string) =>
-    api.post<FundMilestoneResponse>(`${API_PREFIX}/payments/attempts/${attemptId}/retry/`),
+  milestoneAttemptStatus: (milestonePublicId: string) =>
+    api.get<PaymentAttemptStatusResponse>(`${API_PREFIX}/payments/milestones/${milestonePublicId}/attempt-status/`),
 }
 
 // ─── Collabs ─────────────────────────────────────────────────────────────────

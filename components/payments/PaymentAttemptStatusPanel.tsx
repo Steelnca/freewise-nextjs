@@ -1,22 +1,28 @@
-
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeftIcon, CheckCircle2Icon, Clock3Icon, Loader2Icon, RotateCcwIcon, XCircleIcon } from 'lucide-react'
+import {
+  ArrowLeftIcon,
+  CheckCircle2Icon,
+  Clock3Icon,
+  Loader2Icon,
+  RotateCcwIcon,
+  XCircleIcon,
+} from 'lucide-react'
 import { toast } from 'sonner'
 
 import { payments } from '@/lib/api'
-import { PaymentAttemptStatusResponse } from '@/lib/types'
+import type { PaymentAttemptStatusResponse } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ROUTES } from '@/lib/routes'
 
 type Props = {
   variant: 'success' | 'failed'
-  attemptId: string | null
-  milestoneId: string | null
-  contractId: string | null
+  milestonePublicId: string | null
+  contractPublicId: string | null
 }
 
 const statusLabelMap: Record<string, string> = {
@@ -44,6 +50,8 @@ function statusTone(status?: string) {
     case 'PROCESSING':
     case 'PENDING_PROVIDER':
     case 'RECONCILED':
+    case 'REDIRECTED':
+    case 'CREATED':
       return 'bg-amber-100 text-amber-700'
     default:
       return 'bg-muted text-muted-foreground'
@@ -52,9 +60,8 @@ function statusTone(status?: string) {
 
 export default function PaymentAttemptStatusPanel({
   variant,
-  attemptId,
-  milestoneId,
-  contractId,
+  milestonePublicId,
+  contractPublicId,
 }: Props) {
   const router = useRouter()
   const [attempt, setAttempt] = useState<PaymentAttemptStatusResponse | null>(null)
@@ -72,13 +79,17 @@ export default function PaymentAttemptStatusPanel({
   }
 
   const loadStatus = async (silent = false) => {
-    if (!attemptId) return
+    if (!milestonePublicId) {
+      setError('Missing milestone reference.')
+      setLoading(false)
+      return
+    }
 
     if (silent) setRefreshing(true)
     else setLoading(true)
 
     try {
-      const { data } = await payments.attemptStatus(attemptId)
+      const { data } = await payments.milestoneAttemptStatus(milestonePublicId)
       setAttempt(data)
       setError(null)
 
@@ -94,13 +105,9 @@ export default function PaymentAttemptStatusPanel({
   }
 
   useEffect(() => {
-    if (!attemptId) {
-      setError('Missing payment attempt reference.')
-      setLoading(false)
-      return
-    }
-
     void loadStatus(false)
+
+    if (!milestonePublicId) return
 
     pollRef.current = window.setInterval(() => {
       void loadStatus(true)
@@ -108,17 +115,17 @@ export default function PaymentAttemptStatusPanel({
 
     return () => stopPolling()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attemptId])
+  }, [milestonePublicId])
 
   useEffect(() => {
-    if (attempt?.internal_status === 'SETTLED' && contractId) {
+    if (attempt?.internal_status === 'SETTLED' && contractPublicId) {
       const timer = window.setTimeout(() => {
-        router.push(`/dashboard/contracts/${contractId}`)
+        router.push(ROUTES.dashboard.contracts.contractDetail(contractPublicId))
       }, 1500)
 
       return () => window.clearTimeout(timer)
     }
-  }, [attempt?.internal_status, contractId, router])
+  }, [attempt?.internal_status, contractPublicId, router])
 
   const retryable = attempt?.retryable ?? false
   const humanStatus = useMemo(() => {
@@ -137,6 +144,7 @@ export default function PaymentAttemptStatusPanel({
       case 'SETTLED':
         return 'Payment confirmed. Freewise has recorded the funding and moved it through escrow.'
       case 'PAID_PROVIDER_NOT_SETTLED':
+        return 'Chargily says the payment succeeded. Freewise is still settling it safely.'
       case 'PROCESSING':
       case 'PENDING_PROVIDER':
       case 'REDIRECTED':
@@ -144,29 +152,31 @@ export default function PaymentAttemptStatusPanel({
       case 'RECONCILED':
         return 'Payment is still being confirmed. This usually finishes automatically.'
       case 'FAILED':
+        return attempt.failure_reason || 'This attempt failed.'
       case 'CANCELED':
+        return attempt.failure_reason || 'This attempt was canceled.'
       case 'EXPIRED':
-        return attempt.failure_reason || 'This attempt did not complete.'
+        return attempt.failure_reason || 'This checkout expired.'
       default:
         return 'We are still checking this attempt.'
     }
   }, [attempt, variant])
 
   const handleRetry = async () => {
-    if (!attemptId) {
-      toast.error('Missing payment attempt reference.')
+    if (!milestonePublicId) {
+      toast.error('Missing milestone reference.')
       return
     }
 
     setRetrying(true)
     try {
-      const { data } = await payments.retryPaymentAttempt(attemptId)
+      const { data } = await payments.retryFundMilestone(milestonePublicId)
       window.location.assign(data.checkout_url)
     } catch (err: any) {
       if (err?.response?.status === 409) {
         toast.info(err?.response?.data?.detail || 'This milestone is already paid.')
-        if (contractId) {
-          router.push(`/dashboard/contracts/${contractId}`)
+        if (contractPublicId) {
+          router.push(ROUTES.dashboard.contracts.contractDetail(contractPublicId))
         }
         return
       }
@@ -175,9 +185,26 @@ export default function PaymentAttemptStatusPanel({
     } finally {
       setRetrying(false)
     }
-}
+  }
 
-  const backHref = contractId ? `/dashboard/contracts/${contractId}` : '/dashboard/contracts'
+  const canResumeCheckout = Boolean(
+    attempt?.checkout_url &&
+    ['CREATED', 'REDIRECTED', 'PENDING_PROVIDER', 'PROCESSING', 'PAID_PROVIDER_NOT_SETTLED', 'RECONCILED'].includes(
+      attempt.internal_status
+    )
+  )
+
+  const handleOpenCheckout = () => {
+    if (!attempt?.checkout_url) {
+      toast.error('Checkout link is missing.')
+      return
+    }
+    window.open(attempt.checkout_url, '_blank', 'noopener,noreferrer')
+  }
+
+  const backHref = contractPublicId
+    ? ROUTES.dashboard.contracts.contractDetail(contractPublicId)
+    : ROUTES.dashboard.contracts.root
 
   if (loading && !attempt) {
     return (
@@ -201,13 +228,12 @@ export default function PaymentAttemptStatusPanel({
           <Badge className={statusTone(attempt?.internal_status)}>
             {attempt ? humanStatus : 'Checking'}
           </Badge>
-          {refreshing ? <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
+          {refreshing ? (
+            <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : null}
         </div>
 
-        <CardTitle>
-          {variant === 'success' ? 'Payment success' : 'Payment status'}
-        </CardTitle>
-
+        <CardTitle>{variant === 'success' ? 'Payment success' : 'Payment status'}</CardTitle>
         <CardDescription>{mainCopy}</CardDescription>
       </CardHeader>
 
@@ -222,7 +248,11 @@ export default function PaymentAttemptStatusPanel({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border p-4">
               <p className="text-xs text-muted-foreground">Milestone</p>
-              <p className="mt-1 font-medium">#{attempt.milestone_id}</p>
+              <p className="mt-1 font-medium">{attempt.milestone_public_id}</p>
+            </div>
+            <div className="rounded-2xl border p-4">
+              <p className="text-xs text-muted-foreground">Attempt ID</p>
+              <p className="mt-1 font-medium">{attempt.payment_attempt_id}</p>
             </div>
             <div className="rounded-2xl border p-4">
               <p className="text-xs text-muted-foreground">Amount</p>
@@ -238,6 +268,10 @@ export default function PaymentAttemptStatusPanel({
               <p className="text-xs text-muted-foreground">Provider status</p>
               <p className="mt-1 font-medium">{attempt.provider_status || '—'}</p>
             </div>
+            <div className="rounded-2xl border p-4">
+              <p className="text-xs text-muted-foreground">Freewise status</p>
+              <p className="mt-1 font-medium">{attempt.internal_status}</p>
+            </div>
           </div>
         ) : null}
 
@@ -248,6 +282,18 @@ export default function PaymentAttemptStatusPanel({
         ) : null}
 
         <div className="flex flex-wrap gap-3">
+          {attempt?.internal_status === 'SETTLED' ? (
+            <Button onClick={() => router.push(backHref)}>
+              <CheckCircle2Icon className="mr-2 h-4 w-4" />
+              Continue
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={() => router.push(backHref)}>
+              <ArrowLeftIcon className="mr-2 h-4 w-4" />
+              Back to contract
+            </Button>
+          )}
+
           {retryable ? (
             <Button onClick={handleRetry} disabled={retrying}>
               {retrying ? (
@@ -264,17 +310,12 @@ export default function PaymentAttemptStatusPanel({
             </Button>
           ) : null}
 
-          {attempt?.internal_status === 'SETTLED' ? (
-            <Button onClick={() => router.push(backHref)}>
-              <CheckCircle2Icon className="mr-2 h-4 w-4" />
-              Continue
+          {canResumeCheckout ? (
+            <Button variant="outline" onClick={handleOpenCheckout}>
+              <Clock3Icon className="mr-2 h-4 w-4" />
+              Open checkout again
             </Button>
-          ) : (
-            <Button variant="outline" onClick={() => router.push(backHref)}>
-              <ArrowLeftIcon className="mr-2 h-4 w-4" />
-              Back to contract
-            </Button>
-          )}
+          ) : null}
         </div>
 
         {!attempt?.is_final ? (

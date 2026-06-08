@@ -55,7 +55,7 @@ export default function JobProposalsPage() {
     try {
       const res = await proposalsApi.accept(proposalId)
       toast.success(res.data?.detail || 'Proposal accepted.')
-      router.push(ROUTES.dashboard.contracts.contractDetail(res.data.contract_id))
+      router.push(ROUTES.dashboard.contracts.contractDetail(res.data.contract_public_id))
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to accept proposal.')
     } finally {

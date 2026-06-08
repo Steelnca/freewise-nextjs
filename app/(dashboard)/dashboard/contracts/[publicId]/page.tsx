@@ -206,7 +206,6 @@ function getMilestoneFundingAction(
   }
 
   const latestStatus = normalizeStatus(milestone.latest_payment_attempt_status)
-  console.log('milestone', milestone.public_id, 'latest attempt status', latestStatus)
   const hasAttempt = !!milestone.latest_payment_attempt_id
   const isSettledAttempt = latestStatus === 'settled'
   const isOpenAttempt = OPEN_PAYMENT_STATUSES.has(latestStatus)
@@ -225,7 +224,6 @@ function getMilestoneFundingAction(
       attemptId: milestone.latest_payment_attempt_id as string,
     }
   }
-  console.log(isOpenAttempt && milestone.latest_payment_attempt_checkout_url)
   if (isOpenAttempt && milestone.latest_payment_attempt_checkout_url) {
     return {
       kind: 'continue',
@@ -245,8 +243,8 @@ function getMilestoneFundingAction(
 }
 
 export default function ContractDetailPage() {
-  const params = useParams<{ id?: string }>() // id is the contract public_id, not the internal database id
-  const contractPublicId = String(params?.id)
+  const params = useParams<{ publicId?: string }>() // publicId is the contract public_id, not the internal database id
+  const contractPublicId = String(params?.publicId)
   const Router = useRouter()
 
   const [state, setState] = useState<ContractDetailState>({
@@ -329,7 +327,7 @@ export default function ContractDetailPage() {
     milestones.find((m) => m.public_id === firstFundedMilestonePublicId) ?? null
 
   const contractTitle =
-    contract?.title || contract?.job_title || contract?.source_label || `Contract #${contract?.id ?? ''}`
+    contract?.title || contract?.job_title || contract?.source_label || `Contract #${contract?.public_id ?? ''}`
 
   const milestoneTotal = contract?.milestone_total ?? '0'
   const remainingAmount = contract?.remaining_amount ?? '0'
@@ -354,10 +352,10 @@ export default function ContractDetailPage() {
     }
   }
 
-  const retryPaymentAttempt = async (milestonePublicId: string, attemptId: string) => {
+  const retryPaymentAttempt = async (milestonePublicId: string) => {
     setState((current) => ({ ...current, actionMilestonePublicId: milestonePublicId }))
     try {
-      const { data } = await payments.retryPaymentAttempt(attemptId)
+      const { data } = await payments.retryFundMilestone(milestonePublicId)
       window.location.href = data.checkout_url
     } catch (err: any) {
       if (err?.response?.status === 409) {
@@ -369,9 +367,8 @@ export default function ContractDetailPage() {
       toast.error(err?.response?.data?.detail || 'Failed to create a retry checkout.')
     } finally {
       setState((current) => ({ ...current, actionMilestonePublicId: null }))
-    }
   }
-
+}
   const approveMilestone = async (milestonePublicId: string) => {
     setState((current) => ({ ...current, actionMilestonePublicId: milestonePublicId }))
     try {
@@ -956,7 +953,6 @@ export default function ContractDetailPage() {
                             onClick={() =>
                               void retryPaymentAttempt(
                                 milestone.public_id,
-                                fundingAction.attemptId
                               )
                             }
                             disabled={state.actionMilestonePublicId === milestone.public_id}
@@ -1042,9 +1038,9 @@ export default function ContractDetailPage() {
                             Scope: {milestone.revision_scope}
                           </p>
                         ) : null}
-                        {milestone.review_note ? (
+                        {milestone.revision_note ? (
                           <p className="mt-1 text-sm text-orange-700/80">
-                            Note: {milestone.review_note}
+                            Note: {milestone.revision_note}
                           </p>
                         ) : null}
                       </div>

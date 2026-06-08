@@ -15,6 +15,7 @@ import {
   PlusIcon, ArrowRightIcon, ClockIcon,
   CheckCircleIcon, StarIcon, WalletIcon,
 } from 'lucide-react'
+import { ROUTES } from '@/lib/routes'
 
 // ── Status color helpers ──────────────────────────────────────────────────────
 
@@ -46,7 +47,7 @@ export default function DashboardPage() {
   const { t } = useLocale()
 
   const [myJobs,      setMyJobs]      = useState<Job[]>([])
-  const [myOffers,    setMyOffers]    = useState<Proposal[]>([])
+  const [myServices,  setMyServices]  = useState<Proposal[]>([])
   const [myContracts, setMyContracts] = useState<Contract[]>([])
   const [profile,     setProfile]     = useState<FreelancerProfile | null>(null)
   const [escrowed,    setEscrowed]    = useState(0)
@@ -71,7 +72,7 @@ export default function DashboardPage() {
       Promise.all([freelancersApi.me(), proposalsApi.mine(), contractsApi.list()])
         .then(([p, o, c]) => {
           setProfile(p.data)
-          setMyOffers(o.data.slice(0, 5))
+          setMyServices(o.data.slice(0, 5))
           setMyContracts(c.data.slice(0, 5))
         }).finally(() => setLoading(false))
     }
@@ -162,7 +163,7 @@ export default function DashboardPage() {
             loading={loading}
           >
             {myContracts.map((c, i) => (
-              <ListRow key={c.id} index={i} href={`/dashboard/contracts`}>
+              <ListRow key={c.public_id} index={i} href={ROUTES.dashboard.contracts.contractDetail(c.public_id)}>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{c.job_title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -238,15 +239,15 @@ export default function DashboardPage() {
           empty={{ text: 'No offers yet.', action: { label: 'Browse Jobs', href: '/dashboard/jobs' } }}
           loading={loading}
         >
-          {myOffers.map((offer, i) => (
-            <ListRow key={offer.id} index={i}>
+          {myServices.map((service, i) => (
+            <ListRow key={service.id} index={i}>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{offer.job_title}</p>
+                <p className="text-sm font-medium truncate">{service.job_title}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {parseFloat(offer.proposed_price).toLocaleString('fr-DZ')} DZD · {offer.delivery_days} {t.common.days}
+                  {parseFloat(service.proposed_price).toLocaleString('fr-DZ')} DZD · {service.delivery_days} {t.common.days}
                 </p>
               </div>
-              <StatusBadge label={offer.status} cls={offerStatusCls[offer.status]} />
+              <StatusBadge label={service.status} cls={offerStatusCls[service.status]} />
             </ListRow>
           ))}
         </RecentList>
