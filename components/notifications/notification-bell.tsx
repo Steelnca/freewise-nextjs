@@ -77,9 +77,9 @@ export function NotificationBell() {
           ) : (
             notifications.slice(0, 10).map((notification) => (
               <Link
-                key={notification.id}
+                key={notification.public_id}
                 href={notification.link || '#'}
-                onClick={() => void markRead(notification.id)}
+                onClick={() => void markRead(notification.public_id)}
                 className="block border-b p-4 transition hover:bg-muted/40"
               >
                 <div className="flex items-start gap-3">

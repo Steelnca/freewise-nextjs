@@ -25,11 +25,12 @@ import type {
 } from './types'
 import { ROUTES } from './routes'
 
+const API_PREFIX = 'api'
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
-const API_PREFIX = '/api'
+console.log(BASE)
 
 const api = axios.create({
-  baseURL: BASE,
+  baseURL: `${BASE}/${API_PREFIX}`,
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -55,7 +56,7 @@ api.interceptors.response.use(
       if (refresh) {
         try {
           const { data } = await axios.post<AuthTokens>(
-            `${BASE}${API_PREFIX}/auth/refresh/`,
+            `${BASE}/${API_PREFIX}/auth/refresh/`,
             { refresh }
           )
           tokens.set(data.access, data.refresh ?? refresh)
@@ -80,34 +81,34 @@ export const auth = {
     email: string
     password: string
     password2: string
-  }) => api.post<{ detail: string; email: string }>(`${API_PREFIX}/auth/register/`, data),
+  }) => api.post<{ detail: string; email: string }>('/auth/register/', data),
 
   login: (data: { username: string; password: string }) =>
-    api.post<AuthTokens>(`${API_PREFIX}/auth/login/`, data),
+    api.post<AuthTokens>('/auth/login/', data),
 
   logout: (refresh: string) =>
-    api.post(`${API_PREFIX}/auth/logout/`, { refresh }),
+    api.post('/auth/logout/', { refresh }),
 
   verifyEmail: (key: string) =>
-    api.post<{ detail: string }>(`${API_PREFIX}/auth/verify-email/`, { key }),
+    api.post<{ detail: string }>('/auth/verify-email/', { key }),
 
   resendVerification: (email: string) =>
-    api.post<{ detail: string }>(`${API_PREFIX}/auth/resend-verification/`, { email }),
+    api.post<{ detail: string }>('/auth/resend-verification/', { email }),
 
   requestPhoneOTP: () =>
-    api.post<{ detail: string }>(`${API_PREFIX}/auth/phone/request-otp/`),
+    api.post<{ detail: string }>('/auth/phone/request-otp/'),
 
   verifyPhone: (code: string) =>
-    api.post<{ detail: string }>(`${API_PREFIX}/auth/phone/verify/`, { code }),
+    api.post<{ detail: string }>('/auth/phone/verify/', { code }),
 
   me: () =>
-    api.get<Account>(`${API_PREFIX}/auth/me/`),
+    api.get<Account>('/auth/me/'),
 
   forgotPassword: (email: string) =>
-    api.post<{ detail: string }>(`${API_PREFIX}/auth/forgot-password/`, { email }),
+    api.post<{ detail: string }>('/auth/forgot-password/', { email }),
 
   resetPassword: (key: string, password1: string, password2: string) =>
-    api.post<{ detail: string }>(`${API_PREFIX}/auth/reset-password/`, {
+    api.post<{ detail: string }>('/auth/reset-password/', {
       key,
       password1,
       password2,
@@ -118,137 +119,151 @@ export const auth = {
     new_password1: string,
     new_password2: string
   ) =>
-    api.post<{ detail: string }>(`${API_PREFIX}/auth/security/change-password/`, {
+    api.post<{ detail: string }>('/auth/security/change-password/', {
       current_password,
       new_password1,
       new_password2,
     }),
 
   authenticatedForgotPassword: () =>
-    api.post<{ detail: string }>(`${API_PREFIX}/auth/security/forgot-password/`),
+    api.post<{ detail: string }>('/auth/security/forgot-password/'),
 }
 
 // ─── Accounts ────────────────────────────────────────────────────────────────
 
 export const accounts = {
-  me: () => api.get<Account>(`${API_PREFIX}/accounts/me/`),
-  update: (data: Partial<Account>) => api.put<Account>(`${API_PREFIX}/accounts/me/`, data),
+  me: () => api.get<Account>('/accounts/me/'),
+  update: (data: Partial<Account>) => api.put<Account>('/accounts/me/', data),
   activateRole: (role: 'client' | 'freelancer') =>
-    api.post(`${API_PREFIX}/accounts/activate-role/`, { role }),
+    api.post('/accounts/activate-role/', { role }),
 }
 
 // ─── Freelancers ─────────────────────────────────────────────────────────────
 
 export const freelancers = {
   list: (params?: { search?: string; availability?: string }) =>
-    api.get<FreelancerProfile[]>(`${API_PREFIX}/freelancers/`, { params }),
-  me: () => api.get<FreelancerProfile>(`${API_PREFIX}/freelancers/me/`),
+    api.get<FreelancerProfile[]>('/freelancers/', { params }),
+  me: () => api.get<FreelancerProfile>('/freelancers/me/'),
   update: (data: Partial<FreelancerProfile>) =>
-    api.put<FreelancerProfile>(`${API_PREFIX}/freelancers/me/`, data),
+    api.put<FreelancerProfile>('/freelancers/me/', data),
   getBySlug: (slug: string) =>
-    api.get<FreelancerProfile>(`${API_PREFIX}/freelancers/${slug}/`),
-  skills: () => api.get<Skill[]>(`${API_PREFIX}/freelancers/skills/`),
+    api.get<FreelancerProfile>(`/freelancers/${slug}/`),
+  skills: () => api.get<Skill[]>('/freelancers/skills/'),
 }
 
 // ─── Clients ─────────────────────────────────────────────────────────────────
 
 export const clients = {
-  me: () => api.get<ClientProfile>(`${API_PREFIX}/clients/me/`),
+  me: () => api.get<ClientProfile>('/clients/me/'),
   update: (data: Partial<ClientProfile>) =>
-    api.put<ClientProfile>(`${API_PREFIX}/clients/me/`, data),
+    api.put<ClientProfile>('/clients/me/', data),
   getBySlug: (slug: string) =>
-    api.get<ClientProfile>(`${API_PREFIX}/clients/${slug}/`),
+    api.get<ClientProfile>(`/clients/${slug}/`),
 }
 
 // ─── Jobs ────────────────────────────────────────────────────────────────────
 
 export const jobs = {
   list: (params?: { search?: string; category?: string; level?: string }) =>
-    api.get<Job[]>(`${API_PREFIX}/jobs/`, { params }),
-  mine: () => api.get<Job[]>(`${API_PREFIX}/jobs/mine/`),
-  get: (id: number) => api.get<Job>(`${API_PREFIX}/jobs/${id}/`),
-  create: (data: Partial<Job>) => api.post<Job>(`${API_PREFIX}/jobs/create/`, data),
-  update: (id: number, data: Partial<Job>) =>
-    api.put<Job>(`${API_PREFIX}/jobs/${id}/edit/`, data),
-  categories: () => api.get<Category[]>(`${API_PREFIX}/jobs/categories/`),
+    api.get<Job[]>('/jobs/', { params }),
+  mine: () => api.get<Job[]>('/jobs/mine/'),
+  get: (publicId: string) => api.get<Job>(`/jobs/${publicId}/`),
+  create: (data: Partial<Job>) => api.post<Job>('/jobs/create/', data),
+  update: (publicId: string, data: Partial<Job>) =>
+    api.put<Job>(`/jobs/${publicId}/edit/`, data),
+  categories: () => api.get<Category[]>('/jobs/categories/'),
 }
 
 // ─── Proposals ───────────────────────────────────────────────────────────────
 
 export const proposals = {
-  submit: (jobId: number, data: { cover_letter: string; proposed_price: string; delivery_days: number }) =>
-    api.post<Proposal>(`${API_PREFIX}/proposals/${jobId}/submit/`, data),
-  mine: () => api.get<Proposal[]>(`${API_PREFIX}/proposals/mine/`),
-  forJob: (jobId: number) => api.get<Proposal[]>(`${API_PREFIX}/proposals/job/${jobId}/`),
-  accept: (proposalId: number) => api.post(`${API_PREFIX}/proposals/${proposalId}/accept/`),
-  withdraw: (proposalId: number) => api.post(`${API_PREFIX}/proposals/${proposalId}/withdraw/`),
+  submit: (jobPublicId: string, data: { cover_letter: string; proposed_price: string; delivery_days: number }) =>
+    api.post<Proposal>(`/proposals/${jobPublicId}/submit/`, data),
+  mine: () => api.get<Proposal[]>('/proposals/mine/'),
+  forJob: (jobPublicId: string) => api.get<Proposal[]>(`/proposals/job/${jobPublicId}/`),
+  accept: (publicId: string) => api.post(`/proposals/${publicId}/accept/`),
+  withdraw: (publicId: string) => api.post(`/proposals/${publicId}/withdraw/`),
 }
 
 // ─── Services ────────────────────────────────────────────────────────────────
 
 export const services = {
   list: (params?: { search?: string; category?: string }) =>
-    api.get<Service[]>(`${API_PREFIX}/services/`, { params }),
-  mine: () => api.get<Service[]>(`${API_PREFIX}/services/mine/`),
-  get: (id: number) => api.get<Service>(`${API_PREFIX}/services/${id}/`),
+    api.get<Service[]>('/services/', { params }),
+  mine: () => api.get<Service[]>('/services/mine/'),
+  get: (publicId: string) => api.get<Service>(`/services/${publicId}/`),
   create: (data: Partial<Service> & { packages: Partial<ServicePackage>[] }) =>
-    api.post<Service>(`${API_PREFIX}/services/create/`, data),
-  update: (id: number, data: Partial<Service>) =>
-    api.put<Service>(`${API_PREFIX}/services/${id}/edit/`, data),
-  delete: (id: number) => api.delete(`${API_PREFIX}/services/${id}/`),
+    api.post<Service>('/services/create/', data),
+  update: (publicId: string, data: Partial<Service>) =>
+    api.put<Service>(`/services/${publicId}/edit/`, data),
+  delete: (publicId: string) => api.delete(`/services/${publicId}/`),
 }
 
 // ─── Orders ────────────────────────────────────────────────────────────────
 
 export const orders = {
-  create: (serviceId: number, data: { package_id: number; requirements: string }) =>
-    api.post<Order>(`${API_PREFIX}/services/${serviceId}/order/`, data),
-  mine: () => api.get<Order[]>(`${API_PREFIX}/orders/mine/`),
-  get: (id: number) => api.get<Order>(`${API_PREFIX}/orders/${id}/`),
-  deliver: (id: number) => api.post(`${API_PREFIX}/orders/${id}/deliver/`),
-  approve: (id: number) => api.post(`${API_PREFIX}/orders/${id}/approve/`),
-  dispute: (id: number) => api.post(`${API_PREFIX}/orders/${id}/dispute/`),
+  create: (serviceId: string, data: { package_public_id: string; requirements: string }) =>
+    api.post<Order>(`/services/${serviceId}/order/`, data),
+  mine: () => api.get<Order[]>('/orders/mine/'),
+  get: (publicId: string) => api.get<Order>(`/orders/${publicId}/`),
+  deliver: (publicId: string) => api.post(`/orders/${publicId}/deliver/`),
+  approve: (publicId: string) => api.post(`/orders/${publicId}/approve/`),
+  dispute: (publicId: string) => api.post(`/orders/${publicId}/dispute/`),
 }
 
 // ─── Contracts ───────────────────────────────────────────────────────────────
 
 export const contracts = {
-  list: () => api.get<Contract[]>(`${API_PREFIX}/contracts/`),
-  get: (publicId: string) => api.get<Contract>(`${API_PREFIX}/contracts/${encodeURIComponent(publicId)}/`),
-  createMilestone: (
-    contractPublicId: string,
-    data: {
-      title: string
-      description?: string
-      amount: string
-      due_date: string
-      order: number
-    }
-  ) => api.post(`${API_PREFIX}/contracts/${contractPublicId}/milestones/`, data),
-  submitMilestone: (
-    publicId: string,
-    data: { note?: string; submission_link?: string } = {}
-  ) => api.post(`${API_PREFIX}/contracts/milestones/${publicId}/submit/`, data),
-  approveMilestone: (publicId: string) =>
-    api.post(`${API_PREFIX}/contracts/milestones/${publicId}/approve/`),
-  disputeMilestone: (publicId: string) =>
-    api.post(`${API_PREFIX}/contracts/milestones/${publicId}/dispute/`),
-  requestRevisionMilestone: (
-    publicId: string,
-    data: { revision_note?: string; revision_scope?: string } = {}
-  ) => api.post(`${API_PREFIX}/contracts/milestones/${publicId}/request-revision/`, data),
-  deliverable: (publicId: string) =>
-    api.get(`${API_PREFIX}/contracts/milestones/${publicId}/deliverable/`),
+  list: () => api.get(`/contracts/`),
+  get: (publicId: string) => api.get(`/contracts/${publicId}/`),
+  cancel: (publicId: string) => api.post(`/contracts/${publicId}/cancel/`),
+  events: (publicId: string) => api.get(`/contracts/${publicId}/events/`),
+
+  createMilestonePlan: (proposalPublicId: string, data: any) =>
+    api.post(`/contracts/proposals/${proposalPublicId}/milestone-plans/`, data),
+
+  getMilestonePlan: (publicId: string) =>
+    api.get(`/contracts/milestone-plans/${publicId}/`),
+
+  updateMilestonePlan: (publicId: string, data: any) =>
+    api.patch(`/contracts/milestone-plans/${publicId}/`, data),
+
+  approveMilestonePlan: (publicId: string) =>
+    api.post(`/contracts/milestone-plans/${publicId}/approve/`),
+
+  submitMilestone: (milestonePublicId: string, data?: any) =>
+    api.post(`/contracts/milestones/${milestonePublicId}/submit/`, data ?? {}),
+
+  requestRevision: (milestonePublicId: string, data?: any) =>
+    api.post(`/contracts/milestones/${milestonePublicId}/request-revision/`, data ?? {}),
+
+  approveMilestone: (milestonePublicId: string) =>
+    api.post(`/contracts/milestones/${milestonePublicId}/approve/`),
+
+  disputeMilestone: (milestonePublicId: string) =>
+    api.post(`/contracts/milestones/${milestonePublicId}/dispute/`),
+
+  deliverable: (milestonePublicId: string) =>
+    api.get(`/contracts/milestones/${milestonePublicId}/deliverable/`),
+
+  createCollabRequest: (milestonePublicId: string, data: any) =>
+    api.post(`/contracts/milestones/${milestonePublicId}/collabs/`, data),
+
+  applyToCollab: (requestPublicId: string, data?: any) =>
+    api.post(`/contracts/collabs/${requestPublicId}/apply/`, data ?? {}),
+
+  acceptCollabApplication: (applicationPublicId: string) =>
+    api.post(`/contracts/collab-applications/${applicationPublicId}/accept/`),
 }
 
 // ─── Payments ────────────────────────────────────────────────────────────────
 
 export const payments = {
-  wallet: () => api.get<Wallet>(`${API_PREFIX}/payments/wallet/`),
+  wallet: () => api.get<Wallet>('/payments/wallet/'),
   transactions: () =>
-    api.get<WalletTransaction[]>(`${API_PREFIX}/payments/transactions/`),
-  escrow: () => api.get<EscrowHold[]>(`${API_PREFIX}/payments/escrow/`),
-  payouts: () => api.get<Payout[]>(`${API_PREFIX}/payments/payouts/`),
+    api.get<WalletTransaction[]>('/payments/transactions/'),
+  escrow: () => api.get<EscrowHold[]>('/payments/escrow/'),
+  payouts: () => api.get<Payout[]>('/payments/payouts/'),
   requestPayout: (data: {
     amount: string
     idempotency_key: string
@@ -258,49 +273,49 @@ export const payments = {
     destination_label?: string
     description?: string
     metadata?: Record<string, unknown>
-  }) => api.post<Payout>(`${API_PREFIX}/payments/payouts/request/`, data),
+  }) => api.post<Payout>('/payments/payouts/request/', data),
   fundMilestone: (milestonePublicId: string) =>
-    api.post<FundMilestoneResponse>(`${API_PREFIX}/payments/milestones/${milestonePublicId}/fund/`),
+    api.post<FundMilestoneResponse>(`/payments/milestones/${milestonePublicId}/fund/`),
   retryFundMilestone: (milestonePublicId: string) =>
-    api.post<FundMilestoneResponse>(`${API_PREFIX}/payments/milestones/${milestonePublicId}/retry/`),
+    api.post<FundMilestoneResponse>(`/payments/milestones/${milestonePublicId}/retry/`),
   attemptStatus: (attemptId: string) =>
-    api.get<PaymentAttemptStatusResponse>(`${API_PREFIX}/payments/attempts/${attemptId}/status/`),
+    api.get<PaymentAttemptStatusResponse>(`/payments/attempts/${attemptId}/status/`),
   milestoneAttemptStatus: (milestonePublicId: string) =>
-    api.get<PaymentAttemptStatusResponse>(`${API_PREFIX}/payments/milestones/${milestonePublicId}/attempt-status/`),
+    api.get<PaymentAttemptStatusResponse>(`/payments/milestones/${milestonePublicId}/attempt-status/`),
 }
 
 // ─── Collabs ─────────────────────────────────────────────────────────────────
 
 export const collabs = {
   list: (params?: { search?: string }) =>
-    api.get<CollabPost[]>(`${API_PREFIX}/collabs/`, { params }),
-  get: (id: number) => api.get<CollabPost>(`${API_PREFIX}/collabs/${id}/`),
+    api.get<CollabPost[]>('/collabs/', { params }),
+  get: (publicId: string) => api.get<CollabPost>(`/collabs/${publicId}/`),
   create: (data: Partial<CollabPost>) =>
-    api.post<CollabPost>(`${API_PREFIX}/collabs/create/`, data),
-  apply: (id: number, data: { message: string }) =>
-    api.post(`${API_PREFIX}/collabs/${id}/apply/`, data),
-  respond: (applicationId: number, action: 'accept' | 'reject') =>
-    api.post(`${API_PREFIX}/collabs/applications/${applicationId}/${action}/`),
+    api.post<CollabPost>('/collabs/create/', data),
+  apply: (publicId: string, data: { message: string }) =>
+    api.post(`/collabs/${publicId}/apply/`, data),
+  respond: (applicationId: string, action: 'accept' | 'reject') =>
+    api.post(`/collabs/applications/${applicationId}/${action}/`),
 }
 
 // ─── Reviews ─────────────────────────────────────────────────────────────────
 
 export const reviews = {
   submit: (contractPublicId: string, data: { rating: number; comment: string }) =>
-    api.post<Review>(`${API_PREFIX}/reviews/${contractPublicId}/`, data),
+    api.post<Review>(`/reviews/${contractPublicId}/`, data),
   freelancer: (slug: string) =>
-    api.get<Review[]>(`${API_PREFIX}/reviews/freelancer/${slug}/`),
+    api.get<Review[]>(`/reviews/freelancer/${slug}/`),
   client: (slug: string) =>
-    api.get<Review[]>(`${API_PREFIX}/reviews/client/${slug}/`),
+    api.get<Review[]>(`/reviews/client/${slug}/`),
 }
 
 // ─── Notifications ───────────────────────────────────────────────────────────
 
 export const notifications = {
-  list: () => api.get<Notification[]>(`${API_PREFIX}/notifications/`),
-  unreadCount: () => api.get<{ count: number }>(`${API_PREFIX}/notifications/unread-count/`),
-  markRead: (id: number) => api.post(`${API_PREFIX}/notifications/${id}/read/`),
-  markAllRead: () => api.post(`${API_PREFIX}/notifications/read-all/`),
+  list: () => api.get<Notification[]>('/notifications/'),
+  unreadCount: () => api.get<{ count: number }>('/notifications/unread-count/'),
+  markRead: (publicId: string) => api.post(`/notifications/${publicId}/read/`),
+  markAllRead: () => api.post('/notifications/read-all/'),
 }
 
 export default api

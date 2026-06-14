@@ -143,7 +143,7 @@ export default function DashboardPage() {
             loading={loading}
           >
             {myJobs.map((job, i) => (
-              <ListRow key={job.id} index={i} href={`/dashboard/jobs`}>
+              <ListRow key={job.public_id} index={i} href={`/dashboard/jobs`}>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{job.title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
@@ -240,7 +240,7 @@ export default function DashboardPage() {
           loading={loading}
         >
           {myServices.map((service, i) => (
-            <ListRow key={service.id} index={i}>
+            <ListRow key={service.public_id} index={i}>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{service.job_title}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -259,7 +259,7 @@ export default function DashboardPage() {
           loading={loading}
         >
           {myContracts.map((c, i) => (
-            <ListRow key={c.id} index={i} href="/dashboard/contracts">
+            <ListRow key={c.public_id} index={i} href="/dashboard/contracts">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{c.job_title}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">

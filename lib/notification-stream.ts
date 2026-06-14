@@ -2,20 +2,12 @@
 import axios from 'axios'
 import { tokens } from './auth'
 
+import { type Notification } from '@/lib/types'
+
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
-export type NotificationItem = {
-  id: number
-  type: string
-  title: string
-  message: string
-  link: string
-  is_read: boolean
-  created_at: string
-}
-
 type StreamHandlers = {
-  onNotification: (notification: NotificationItem) => void
+  onNotification: (notification: Notification) => void
   onError?: (error: Error) => void
   signal?: AbortSignal
 }
@@ -93,7 +85,7 @@ export async function connectNotificationStream({
 
         const event = parseSSEBlock(block)
         if (event.event === 'notification' && event.data) {
-          onNotification(JSON.parse(event.data) as NotificationItem)
+          onNotification(JSON.parse(event.data) as Notification)
         }
 
         splitIndex = buffer.indexOf('\n\n')

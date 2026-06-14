@@ -93,6 +93,8 @@ const en: Messages = {
     budget:         'Budget',
     deadline:       'Deadline',
     experience:     'Experience Level',
+    jobDetail: 'View Details',
+    viewProposal: 'View Proposals',
     submitProposal: 'Submit Proposal',
     noJobs:         'No jobs found',
     proposals:      'proposals',

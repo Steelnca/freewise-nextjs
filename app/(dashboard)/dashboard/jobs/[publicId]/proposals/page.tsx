@@ -20,23 +20,23 @@ import { Separator } from '@/components/ui/separator'
 export default function JobProposalsPage() {
   const { mode } = useMode()
   const router = useRouter()
-  const params = useParams<{ id?: string }>()
-  const jobId = Number(params?.id)
+  const params = useParams<{ publicId?: string }>()
+  const jobPublicId = params?.publicId
 
   const [job, setJob] = useState<Job | null>(null)
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [loading, setLoading] = useState(true)
-  const [acceptingId, setAcceptingId] = useState<number | null>(null)
+  const [acceptingId, setAcceptingId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!jobId || Number.isNaN(jobId)) return
+    if (!jobPublicId) return
 
     const load = async () => {
       setLoading(true)
       try {
         const [jobRes, proposalsRes] = await Promise.all([
-          jobsApi.get(jobId),
-          proposalsApi.forJob(jobId),
+          jobsApi.get(jobPublicId),
+          proposalsApi.forJob(jobPublicId),
         ])
         setJob(jobRes.data)
         setProposals(proposalsRes.data)
@@ -48,12 +48,12 @@ export default function JobProposalsPage() {
     }
 
     load()
-  }, [jobId])
+  }, [jobPublicId])
 
-  const handleAccept = async (proposalId: number) => {
-    setAcceptingId(proposalId)
+  const handleAcceptProposal = async (publicId: string) => {
+    setAcceptingId(publicId)
     try {
-      const res = await proposalsApi.accept(proposalId)
+      const res = await proposalsApi.accept(publicId)
       toast.success(res.data?.detail || 'Proposal accepted.')
       router.push(ROUTES.dashboard.contracts.contractDetail(res.data.contract_public_id))
     } catch (err: any) {
@@ -112,7 +112,7 @@ export default function JobProposalsPage() {
             </div>
           ) : (
             proposals.map((proposal, index) => (
-              <div key={proposal.id}>
+              <div key={proposal.public_id}>
                 {index > 0 && <Separator className="my-4" />}
 
                 <div className="rounded-2xl border p-4">
@@ -147,10 +147,10 @@ export default function JobProposalsPage() {
 
                     <div className="flex shrink-0 gap-2">
                       <Button
-                        onClick={() => handleAccept(proposal.id)}
-                        disabled={acceptingId === proposal.id}
+                        onClick={() => handleAcceptProposal(proposal.public_id)}
+                        disabled={acceptingId === proposal.public_id}
                       >
-                        {acceptingId === proposal.id ? 'Accepting...' : 'Accept proposal'}
+                        {acceptingId === proposal.public_id ? 'Accepting...' : 'Accept proposal'}
                       </Button>
                     </div>
                   </div>

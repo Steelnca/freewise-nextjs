@@ -35,7 +35,7 @@ export default function PayoutsPage() {
 
   const canSubmit = useMemo(() => Number(amount) > 0, [amount])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault()
     if (!canSubmit) return
 
@@ -124,7 +124,7 @@ export default function PayoutsPage() {
             ) : (
               <div className="space-y-4">
                 {items.map((item, index) => (
-                  <div key={item.id}>
+                  <div key={item.public_id}>
                     {index > 0 && <Separator className="my-4" />}
                     <div className="flex items-start justify-between gap-4">
                       <div>

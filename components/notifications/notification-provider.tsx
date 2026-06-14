@@ -13,24 +13,25 @@ import {
 } from 'react'
 
 import { notifications as notificationsApi } from '@/lib/api'
-import { connectNotificationStream, type NotificationItem } from '@/lib/notification-stream'
+import { connectNotificationStream } from '@/lib/notification-stream'
+import { type Notification } from '@/lib/types'
 
 type NotificationContextValue = {
-  notifications: NotificationItem[]
+  notifications: Notification[]
   unreadCount: number
   loading: boolean
   refresh: () => Promise<void>
-  markRead: (id: number) => Promise<void>
+  markRead: (public_id: string) => Promise<void>
   markAllRead: () => Promise<void>
 }
 
 const NotificationContext = createContext<NotificationContextValue | null>(null)
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const seenIds = useRef<Set<number>>(new Set())
+  const seenIds = useRef<Set<string>>(new Set())
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -40,19 +41,19 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         notificationsApi.unreadCount(),
       ])
 
-      const items = listRes.data as NotificationItem[]
+      const items = listRes.data as Notification[]
       setNotifications(items)
       setUnreadCount(unreadRes.data.count)
-      seenIds.current = new Set(items.map((item) => item.id))
+      seenIds.current = new Set(items.map((item) => item.public_id))
     } finally {
       setLoading(false)
     }
   }, [])
 
-  const markRead = useCallback(async (id: number) => {
-    await notificationsApi.markRead(id)
+  const markRead = useCallback(async (public_id: string) => {
+    await notificationsApi.markRead(public_id)
     setNotifications((current) =>
-      current.map((item) => (item.id === id ? { ...item, is_read: true } : item))
+      current.map((item) => (item.public_id === public_id ? { ...item, is_read: true } : item))
     )
     setUnreadCount((current) => Math.max(0, current - 1))
   }, [])
@@ -73,9 +74,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       signal: controller.signal,
       onNotification: (notification) => {
         if (cancelled) return
-        if (seenIds.current.has(notification.id)) return
+        if (seenIds.current.has(notification.public_id)) return
 
-        seenIds.current.add(notification.id)
+        seenIds.current.add(notification.public_id)
         setNotifications((current) => [notification, ...current])
         if (!notification.is_read) {
           setUnreadCount((current) => current + 1)

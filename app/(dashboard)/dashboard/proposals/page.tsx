@@ -23,7 +23,7 @@ export default function ProposalsPage() {
   const { t }    = useLocale()
   const [myProposals, setMyProposals] = useState<Proposal[]>([])
   const [loading,     setLoading]     = useState(true)
-  const [withdrawing, setWithdrawing] = useState<number | null>(null)
+  const [withdrawing, setWithdrawing] = useState<string | null>(null)
 
   useEffect(() => {
     proposalsApi.mine().then(r => setMyProposals(r.data)).finally(() => setLoading(false))
@@ -38,11 +38,11 @@ export default function ProposalsPage() {
     )
   }
 
-  const handleWithdraw = async (id: number) => {
-    setWithdrawing(id)
+  const handleWithdraw = async (public_id: string) => {
+    setWithdrawing(public_id)
     try {
-      await proposalsApi.withdraw(id)
-      setMyProposals(prev => prev.map(p => p.id === id ? { ...p, status: 'WITHDRAWN' as const } : p))
+      await proposalsApi.withdraw(public_id)
+      setMyProposals(prev => prev.map(p => p.public_id === public_id ? { ...p, status: 'WITHDRAWN' as const } : p))
       toast.success('Proposal withdrawn.')
     } catch { toast.error('Failed to withdraw.') }
     finally { setWithdrawing(null) }
@@ -83,7 +83,7 @@ export default function ProposalsPage() {
                 </div>
                 <div className="space-y-3">
                   {group.map(proposal => (
-                    <Card key={proposal.id} className="hover:shadow-sm transition-shadow">
+                    <Card key={proposal.public_id} className="hover:shadow-sm transition-shadow">
                       <CardContent className="p-5">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0 space-y-2">
@@ -109,8 +109,8 @@ export default function ProposalsPage() {
                               </Button>
                             )}
                             {status === 'PENDING' && (
-                              <Button size="sm" variant="outline" disabled={withdrawing === proposal.id} onClick={() => handleWithdraw(proposal.id)}>
-                                {withdrawing === proposal.id ? t.common.loading : 'Withdraw'}
+                              <Button size="sm" variant="outline" disabled={withdrawing === proposal.public_id} onClick={() => handleWithdraw(proposal.public_id)}>
+                                {withdrawing === proposal.public_id ? t.common.loading : 'Withdraw'}
                               </Button>
                             )}
                           </div>

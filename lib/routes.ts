@@ -14,9 +14,9 @@ export const ROUTES = {
     root: "/dashboard",
     jobs: {
       root: "/dashboard/jobs",
-      job: (jobId: number) => `/dashboard/jobs/${jobId}`,
-      jobEdit: (jobId: number) => `/dashboard/jobs/${jobId}/edit`,
-      jobProposals: (jobId: number) => `/dashboard/jobs/${jobId}/proposals`,
+      jobDetail: (publicId: string) => `/dashboard/jobs/${publicId}`,
+      jobEdit: (publicId: string) => `/dashboard/jobs/${publicId}/edit`,
+      jobProposals: (publicId: string) => `/dashboard/jobs/${publicId}/proposals`,
     },
 
     post: "/dashboard/post",

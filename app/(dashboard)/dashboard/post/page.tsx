@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeftIcon } from 'lucide-react'
+import { ROUTES } from '@/lib/routes'
 
 export default function PostJobPage() {
   const { mode } = useMode()
@@ -25,7 +26,7 @@ export default function PostJobPage() {
   const [errors,     setErrors]     = useState<Record<string, string>>({})
   const [form, setForm] = useState({
     title: '', description: '', category_id: '',
-    experience_level: 'MID', budget_min: '', budget_max: '', deadline: '',
+    experience_level: 'MID', budget_total: '', deadline: '',
   })
 
   useEffect(() => { jobsApi.categories().then(r => setCategories(r.data)) }, [])
@@ -54,12 +55,11 @@ export default function PostJobPage() {
         description:      form.description,
         category_id:      form.category_id ? Number(form.category_id) : undefined,
         experience_level: form.experience_level as any,
-        budget_min:       form.budget_min   || undefined,
-        budget_max:       form.budget_max   || undefined,
+        budget_total:     form.budget_total   || undefined,
         deadline:         form.deadline     || undefined,
       } as any)
       toast.success('Job posted!')
-      router.push('/dashboard/jobs')
+      router.push(ROUTES.dashboard.jobs.root)
     } catch (err: any) {
       const data = err?.response?.data ?? {}
       const mapped: Record<string, string> = {}
@@ -114,7 +114,7 @@ export default function PostJobPage() {
                   <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No category</SelectItem>
-                    {categories.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                    {categories.map(c => <SelectItem key={c.slug} value={String(c.slug)}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -133,12 +133,8 @@ export default function PostJobPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Min Budget (DZD)</Label>
-                <Input type="number" min={0} value={form.budget_min} onChange={e => set('budget_min', e.target.value)} placeholder="5000" />
-              </div>
-              <div className="space-y-2">
-                <Label>Max Budget (DZD)</Label>
-                <Input type="number" min={0} value={form.budget_max} onChange={e => set('budget_max', e.target.value)} placeholder="20000" />
+                <Label>Total Budget (DZD)</Label>
+                <Input type="number" min={0} value={form.budget_total} onChange={e => set('budget_total', e.target.value)} placeholder="0" />
               </div>
             </div>
 

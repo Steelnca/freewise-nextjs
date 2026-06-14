@@ -91,6 +91,8 @@ export interface Messages {
     budget:         string
     deadline:       string
     experience:     string
+    jobDetail:      string
+    viewProposal:   string
     submitProposal: string
     noJobs:         string
     proposals:      string

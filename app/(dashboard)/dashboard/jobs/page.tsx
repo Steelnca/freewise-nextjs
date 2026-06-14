@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SearchIcon, PlusIcon, UsersIcon, CalendarIcon, DollarSignIcon, SendIcon } from 'lucide-react'
 import { ROUTES } from '@/lib/routes'
+import { useRouter } from 'next/navigation'
 
 const levelCls: Record<string, string> = {
   ENTRY:  'bg-green-100 text-green-700',
@@ -33,6 +34,7 @@ const jobStatusCls: Record<string, string> = {
 export default function JobsPage() {
   const { mode } = useMode()
   const { t }    = useLocale()
+  const router = useRouter()
 
   const [allJobs,    setAllJobs]    = useState<Job[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -67,7 +69,7 @@ export default function JobsPage() {
     if (!proposalJob) return
     setSubmitting(true)
     try {
-      await proposalsApi.submit(proposalJob.id, {
+      await proposalsApi.submit(proposalJob.public_id, {
         cover_letter:   proposal.cover_letter,
         proposed_price: proposal.proposed_price,
         delivery_days:  Number(proposal.delivery_days),
@@ -141,7 +143,7 @@ export default function JobsPage() {
       ) : (
         <div className="space-y-4">
           {allJobs.map(job => (
-            <Card key={job.id} className="hover:shadow-md transition-shadow">
+            <Card key={job.public_id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0 space-y-2">
@@ -160,12 +162,10 @@ export default function JobsPage() {
                     <p className="text-sm text-muted-foreground line-clamp-2">{job.description}</p>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                       {!isClient && <span>by {job.client_username}</span>}
-                      {(job.budget_min || job.budget_max) && (
+                      {job.budget_total && (
                         <span className="flex items-center gap-1">
                           <DollarSignIcon className="w-3 h-3" />
-                          {job.budget_min && parseFloat(job.budget_min).toLocaleString('fr-DZ')}
-                          {job.budget_min && job.budget_max && ' – '}
-                          {job.budget_max && parseFloat(job.budget_max).toLocaleString('fr-DZ')} DZD
+                          {job.budget_total && parseFloat(job.budget_total).toLocaleString('fr-DZ')} DZD
                         </span>
                       )}
                       {job.deadline && (
@@ -180,10 +180,17 @@ export default function JobsPage() {
                       {job.category && <span className="bg-muted px-2 py-0.5 rounded-full">{job.category.name}</span>}
                     </div>
                   </div>
+                  {isClient && (
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={ROUTES.dashboard.jobs.jobDetail(job.public_id)}>
+                        {t.jobs.jobDetail}
+                      </Link>
+                    </Button>
+                  )}
                   {isClient && job.status === 'OPEN' && job.proposal_count > 0 && (
                     <Button asChild variant="outline" size="sm">
-                      <Link href={ROUTES.dashboard.jobs.jobProposals(job.id)}>
-                        View proposals
+                      <Link href={ROUTES.dashboard.jobs.jobProposals(job.public_id)}>
+                        {t.jobs.viewProposal}
                       </Link>
                     </Button>
                   )}

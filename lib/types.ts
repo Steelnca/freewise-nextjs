@@ -95,7 +95,7 @@ export type JobStatus = 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 export type ExperienceLevel = 'ENTRY' | 'MID' | 'EXPERT'
 
 export interface Job {
-  id:               number
+  public_id:        string
   client_username:  string
   client_slug:      string
   title:            string
@@ -103,8 +103,7 @@ export interface Job {
   category:         Category | null
   tags:             Tag[]
   experience_level: ExperienceLevel
-  budget_min:       string | null
-  budget_max:       string | null
+  budget_total:       string | null
   deadline:         string | null
   status:           JobStatus
   proposal_count:      number
@@ -116,7 +115,7 @@ export interface Job {
 export type ProposalStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN'
 
 export interface Proposal {
-  id:                  number
+  public_id:           string
   job:                 number
   job_title:           string
   freelancer_username: string
@@ -134,7 +133,7 @@ export interface Proposal {
 export type ServiceStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED'
 
 export interface ServicePackage {
-  id:            number
+  public_id:     string
   title:         string
   description:   string
   price:         string
@@ -143,7 +142,7 @@ export interface ServicePackage {
 }
 
 export interface Service {
-  id:                  number
+  public_id:           string
   freelancer_username: string
   freelancer_slug:     string
   freelancer_rating:   string
@@ -163,7 +162,7 @@ export type OrderStatus =
   | 'COMPLETED' | 'CANCELLED' | 'DISPUTED'
 
 export interface Order {
-  id:                  number
+  public_id:           string
   service:             number
   service_title:       string
   package:             ServicePackage
@@ -203,7 +202,6 @@ export type MilestoneStatus =
   | 'CANCELLED'
 
 export interface Milestone {
-  id: number
   public_id: string
   title: string
   amount: string
@@ -225,10 +223,16 @@ export interface Milestone {
   review_note?: string
   revision_note?: string
   dispute_reason?: string
+
+  status_label?: string | null
+  latest_payment_attempt_id?: string | null
+  latest_payment_attempt_internal_status?: string | null
+  latest_payment_attempt_provider_status?: string | null
+  latest_payment_attempt_checkout_url?: string | null
+  latest_payment_attempt_retryable?: boolean
 }
 
 export interface Contract {
-  id: number
   public_id: string
   title: string
   job: number
@@ -243,7 +247,19 @@ export interface Contract {
   milestones: Milestone[]
   created_at: string
   completed_at: string | null
-
+  viewer_role?: 'client' | 'freelancer' | null
+  viewer_is_client?: boolean
+  viewer_is_freelancer?: boolean
+  milestone_total?: string
+  remaining_amount?: string
+  funding_progress?: number
+  first_pending_milestone_public_id?: string | null
+  first_funded_milestone_public_id?: string | null
+  next_action?: string
+  next_action_milestone_public_id?: string | null
+  has_suspension?: boolean
+  is_funding_locked?: boolean
+  is_finished?: boolean
 }
 
 // ─── Payments ────────────────────────────────────────────────────────────────
@@ -264,7 +280,6 @@ export type EscrowHoldStatus = "active" | "released" | "refunded" | "disputed" |
 export type PayoutStatus = "pending" | "processing" | "paid" | "failed" | "reversed" | "cancelled"
 
 export interface Wallet {
-  id: number
   currency: string
   available_balance: string
   escrow_balance: string
@@ -274,7 +289,7 @@ export interface Wallet {
 }
 
 export interface WalletTransaction {
-  id: number
+  public_id: string
   transaction_type: WalletTransactionType
   status: WalletTransactionStatus
   amount: string
@@ -291,7 +306,7 @@ export interface WalletTransaction {
 }
 
 export interface EscrowHold {
-  id: number
+  public_id: string
   contract_reference: string
   amount: string
   currency: string
@@ -307,7 +322,7 @@ export interface EscrowHold {
 }
 
 export interface Payout {
-  id: number
+  public_id: string
   amount: string
   currency: string
   status: PayoutStatus
@@ -326,7 +341,7 @@ export interface Payout {
 // ─── Collabs ─────────────────────────────────────────────────────────────────
 
 export interface CollabPost {
-  id:                number
+  public_id:          string
   posted_by_username: string
   posted_by_slug:    string
   title:             string
@@ -342,7 +357,7 @@ export interface CollabPost {
 // ─── Reviews ─────────────────────────────────────────────────────────────────
 
 export interface Review {
-  id:                number
+  public_id: string
   contract:          number
   reviewer_username: string
   reviewee_username: string
@@ -354,7 +369,7 @@ export interface Review {
 // ─── Notifications ───────────────────────────────────────────────────────────
 
 export interface Notification {
-  id:         number
+  public_id: string
   type:       string
   title:      string
   message:    string

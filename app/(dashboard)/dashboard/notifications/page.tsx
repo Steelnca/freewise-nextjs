@@ -57,9 +57,9 @@ export default function NotificationsPage() {
           ) : (
             notifications.map((notification) => (
               <Link
-                key={notification.id}
+                key={notification.public_id}
                 href={notification.link || '#'}
-                onClick={() => void markRead(notification.id)}
+                onClick={() => void markRead(notification.public_id)}
                 className="block rounded-2xl border p-4 transition hover:bg-muted/40"
               >
                 <div className="flex items-start gap-3">

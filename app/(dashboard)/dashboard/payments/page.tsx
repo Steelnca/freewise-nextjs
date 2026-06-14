@@ -127,7 +127,7 @@ export default function PaymentsPage() {
               <p className="text-sm text-muted-foreground">No transactions yet.</p>
             ) : (
               transactions.map((tx, index) => (
-                <div key={tx.id}>
+                <div key={tx.public_id}>
                   {index > 0 && <Separator className="my-4" />}
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -162,7 +162,7 @@ export default function PaymentsPage() {
               ) : (
                 <div className="space-y-3">
                   {escrow.map((hold) => (
-                    <div key={hold.id} className="flex items-center justify-between rounded-xl border p-4">
+                    <div key={hold.public_id} className="flex items-center justify-between rounded-xl border p-4">
                       <div>
                         <p className="font-medium">{hold.contract_reference}</p>
                         <p className="text-sm text-muted-foreground uppercase">{hold.status}</p>
@@ -185,7 +185,7 @@ export default function PaymentsPage() {
               ) : (
                 <div className="space-y-3">
                   {payouts.map((payout) => (
-                    <div key={payout.id} className="flex items-center justify-between rounded-xl border p-4">
+                    <div key={payout.public_id} className="flex items-center justify-between rounded-xl border p-4">
                       <div>
                         <p className="font-medium">{payout.destination_label || 'Payout'}</p>
                         <p className="text-sm text-muted-foreground uppercase">{payout.status}</p>
