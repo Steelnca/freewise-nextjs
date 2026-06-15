@@ -46,7 +46,6 @@ export type ContractWithWorkflow = Contract & {
   is_funding_locked?: boolean
   is_finished?: boolean
   milestones?: MilestoneWithWorkflow[]
-  job?: string | number | null
   job_title?: string | null
   title?: string | null
   source_label?: string | null

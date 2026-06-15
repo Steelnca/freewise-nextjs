@@ -92,22 +92,31 @@ export interface Tag {
 }
 
 export type JobStatus = 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
-export type ExperienceLevel = 'ENTRY' | 'MID' | 'EXPERT'
+export type ExperienceLevel = 'BEGINNER' | 'INTERMEDIATE' | 'EXPERT'
+
+export type PricingMode = 'FIXED' | 'NEGOTIABLE'
+export type MilestoneMode = 'SINGLE' | 'MULTI'
+export type SplitOwner = 'CLIENT' | 'FREELANCER'
 
 export interface Job {
-  public_id:        string
-  client_username:  string
-  client_slug:      string
-  title:            string
-  description:      string
-  category:         Category | null
-  tags:             Tag[]
+  public_id: string
+  client_username: string
+  client_slug: string
+  title: string
+  description: string
+  category: Category | null
+  tags: Tag[]
   experience_level: ExperienceLevel
-  budget_total:       string | null
-  deadline:         string | null
-  status:           JobStatus
-  proposal_count:      number
-  created_at:       string
+  pricing_mode: PricingMode
+  milestone_mode: MilestoneMode
+  split_owner: SplitOwner
+  collab_allowed: boolean
+  budget_total: string | null
+  deadline: string | null
+  status: JobStatus
+  proposal_count: number
+  created_at: string
+  milestone_plan_preview?: MilestonePlanDraftItem[]
 }
 
 // ─── Proposals (bids on jobs) ─────────────────────────────────────────────────
@@ -115,17 +124,18 @@ export interface Job {
 export type ProposalStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN'
 
 export interface Proposal {
-  public_id:           string
-  job:                 number
-  job_title:           string
+  public_id: string
+  job: number
+  job_title: string
   freelancer_username: string
-  freelancer_slug:     string
-  freelancer_rating:   string
-  cover_letter:        string
-  proposed_price:      string
-  delivery_days:       number
-  status:              ProposalStatus
-  created_at:          string
+  freelancer_slug: string
+  freelancer_rating: string
+  cover_letter: string
+  proposed_price: string
+  delivery_days: number
+  status: ProposalStatus
+  milestone_plans?: MilestonePlan[]
+  created_at: string
 }
 
 // ─── Services (freelancer gig listings) ──────────────────────────────────────
@@ -175,6 +185,81 @@ export interface Order {
 }
 
 // ─── Contracts ───────────────────────────────────────────────────────────────
+
+export type MilestonePlanStatus =
+  | 'DRAFT'
+  | 'PROPOSED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'LOCKED'
+
+export type MilestonePlanItemStatus =
+  | 'DRAFT'
+  | 'PROPOSED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'CONVERTED'
+
+export type MilestonePlanItemSource = 'CLIENT' | 'FREELANCER'
+
+export interface MilestonePlanDraftItem {
+  id: string
+  title: string
+  description: string
+  amount: string
+  due_date: string
+  order: number
+  source: 'CLIENT' | 'FREELANCER'
+  can_be_suggested: boolean
+}
+
+export interface MilestonePlanDraftPayload {
+  note?: string
+  suggestion_enabled: boolean
+  items: Omit<MilestonePlanDraftItem, 'id'>[]
+}
+
+export interface MilestonePlanItem {
+  public_id: string
+  plan?: number
+  proposal?: number
+  title: string
+  description: string
+  amount: string
+  due_date: string
+  order: number
+  source: MilestonePlanItemSource
+  status: MilestonePlanItemStatus
+  can_be_suggested: boolean
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface MilestonePlan {
+  public_id: string
+  proposal: number
+  created_by: number
+  status: MilestonePlanStatus
+  note: string
+  total_amount: string
+  currency: string
+  suggestion_enabled: boolean
+  items: MilestonePlanItem[]
+  created_at: string
+  updated_at: string
+}
+
+export interface MilestoneSubmission {
+  public_id: string
+  milestone: string
+  submitted_by: number
+  note: string
+  external_link: string
+  payload: Record<string, unknown>
+  status: string
+  submitted_at: string
+}
 
 export type ContractStatus =
   | 'DRAFT'
@@ -235,16 +320,22 @@ export interface Milestone {
 export interface Contract {
   public_id: string
   title: string
-  job: number
+  job_public_id: string
   job_title: string
+  proposal?: number
   client_username: string
   freelancer_username: string
   source_label: string
   status_label: string
   agreed_price: string
+  budget_total?: string | null
   deadline: string
   status: string
   milestones: Milestone[]
+  milestone_mode?: MilestoneMode
+  milestone_mode_value?: MilestoneMode
+  split_owner?: SplitOwner
+  collab_allowed?: boolean
   created_at: string
   completed_at: string | null
   viewer_role?: 'client' | 'freelancer' | null

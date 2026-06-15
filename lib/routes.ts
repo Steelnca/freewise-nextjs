@@ -14,12 +14,12 @@ export const ROUTES = {
     root: "/dashboard",
     jobs: {
       root: "/dashboard/jobs",
+      jobPost: "/dashboard/jobs/post",
       jobDetail: (publicId: string) => `/dashboard/jobs/${publicId}`,
       jobEdit: (publicId: string) => `/dashboard/jobs/${publicId}/edit`,
       jobProposals: (publicId: string) => `/dashboard/jobs/${publicId}/proposals`,
     },
 
-    post: "/dashboard/post",
     proposals: "/dashboard/proposals",
     contracts: {
       root: "/dashboard/contracts",

@@ -137,7 +137,7 @@ export default function JobsPage() {
         <Card>
           <CardContent className="py-16 flex flex-col items-center gap-4 text-center">
             <p className="text-muted-foreground">{t.jobs.noJobs}</p>
-            {isClient && <Button asChild><Link href={ROUTES.dashboard.post}>{t.jobs.post}</Link></Button>}
+            {isClient && <Button asChild><Link href={ROUTES.dashboard.jobs.jobPost}>{t.jobs.post}</Link></Button>}
           </CardContent>
         </Card>
       ) : (

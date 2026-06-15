@@ -1,218 +1,507 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ArrowLeftIcon, HandCoinsIcon, PlusIcon, ShieldAlertIcon, StarIcon, UserIcon } from 'lucide-react'
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  DollarSign,
+  HandCoins,
+  ListChecks,
+  ShieldAlert,
+  Sparkles,
+  Workflow,
+} from 'lucide-react'
 
 import { contracts as contractsApi, payments, proposals as proposalsApi } from '@/lib/api'
 import { ROUTES } from '@/lib/routes'
-import type { Proposal } from '@/lib/types'
-import { useLocale } from '@/context/locale-context'
-
-import { ContractActivityTimeline } from '@/components/contracts/ContractActivityTimeline'
-import { ContractProgress } from '@/components/contracts/ContractProgress'
-import type { ContractViewerRole, ContractWithWorkflow, MilestoneWithWorkflow } from '@/components/contracts/contract-workflow'
-import {
-  contractStatusTone,
-  getContractPrimaryAction,
-  money,
-  nextActionMessage,
-  nextActionTone,
-  normalizeStatus,
-  titleFromContract,
-} from '@/components/contracts/contract-workflow'
+import type { Contract, Milestone, Proposal } from '@/lib/types'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
-import CreateMilestoneDialog from '@/components/dialogs/contracts/CreateMilestoneDialog'
-import SubmitWorkDialog from '@/components/dialogs/contracts/SubmitWorkDialog'
 import RequestRevisionDialog from '@/components/dialogs/contracts/RequestRevisionDialog'
+import SubmitWorkDialog from '@/components/dialogs/contracts/SubmitWorkDialog'
+import MilestonePlanEditor from '@/components/contracts/MilestonePlanEditor'
+import ContractMilestoneTimeline from '@/components/contracts/ContractMilestoneTimeline'
 
-type ProposalWithExtras = Proposal & {
-  freelancer_rating?: number
+type ContractViewerRole = 'client' | 'freelancer' | null
+
+type MilestonePlanItemLike = {
+  public_id?: string
+  title: string
+  description?: string
+  amount: string
+  due_date: string
+  order: number
+  source: 'CLIENT' | 'FREELANCER'
+  can_be_suggested?: boolean
+  status?: string
 }
 
-type ContractDetailState = {
-  contract: ContractWithWorkflow | null
-  acceptedProposal: ProposalWithExtras | null
-  loading: boolean
-  actionMilestonePublicId: string | null
+type MilestonePlanLike = {
+  public_id: string
+  status?: string
+  note?: string
+  suggestion_enabled?: boolean
+  total_amount?: string
+  currency?: string
+  items?: MilestonePlanItemLike[]
 }
 
-function getLocaleStrings(locale?: string) {
-  const lang = (locale || 'en').toLowerCase()
-  const en = {
-    back: 'Back to contracts',
-    loading: 'Loading contract…',
-    notFoundTitle: 'Contract not found',
-    notFoundDescription: 'You might not have access to this contract, or it may no longer exist.',
-    clientWorkspace: 'Client workspace',
-    freelancerWorkspace: 'Freelancer workspace',
-    nextAction: 'Next action',
-    milestones: 'Milestones',
-    summary: 'Contract summary',
-    acceptedProposal: 'Accepted proposal',
-    contractBrief: 'Contract brief',
-    addMilestone: 'Add milestone',
-    loadingCheckout: 'Opening checkout…',
-    creatingRetry: 'Creating retry…',
+type ProposalWithPlans = Proposal & {
+  milestone_plans?: MilestonePlanLike[]
+}
+
+type ContractDetail = Contract & {
+  proposal?: number | string | null
+  milestone_mode?: 'SINGLE' | 'MULTI' | string
+  split_owner?: 'CLIENT' | 'FREELANCER' | string
+  collab_allowed?: boolean
+  budget_total?: string | null
+  viewer_role?: ContractViewerRole
+  viewer_is_client?: boolean
+  viewer_is_freelancer?: boolean
+  milestone_total?: string
+  remaining_amount?: string
+  funding_progress?: number
+  first_pending_milestone_public_id?: string | null
+  first_funded_milestone_public_id?: string | null
+  next_action?: string
+  next_action_milestone_public_id?: string | null
+  has_suspension?: boolean
+  is_funding_locked?: boolean
+  is_finished?: boolean
+  milestones: Milestone[]
+}
+
+type DetailAction =
+  | { kind: 'none'; label: string }
+  | { kind: 'scroll-plan'; label: string }
+  | { kind: 'scroll-milestone'; label: string; milestonePublicId: string }
+  | { kind: 'fund'; label: string; milestonePublicId: string }
+  | { kind: 'continue'; label: string; milestonePublicId: string }
+  | { kind: 'retry'; label: string; milestonePublicId: string }
+
+const normalizeStatus = (value?: string | null) => String(value ?? '').trim().toLowerCase()
+
+const money = (value: string | number | undefined | null) =>
+  Number(value || 0).toLocaleString('fr-DZ')
+
+const openPaymentStatuses = new Set([
+  'created',
+  'redirected',
+  'pending_provider',
+  'processing',
+  'paid_provider_not_settled',
+  'reconciled',
+])
+
+const retryablePaymentStatuses = new Set(['failed', 'canceled', 'cancelled', 'expired'])
+
+const contractFinishedStatuses = new Set(['completed', 'cancelled', 'withdrawn', 'abandoned'])
+
+const milestoneOrderingLockedStatuses = new Set(['funded', 'submitted', 'revision_requested', 'disputed', 'released', 'refunded'])
+
+function contractStatusTone(status: string) {
+  switch (normalizeStatus(status)) {
+    case 'draft':
+      return 'bg-zinc-100 text-zinc-700'
+    case 'pending_funding':
+      return 'bg-amber-100 text-amber-700'
+    case 'in_progress':
+      return 'bg-blue-100 text-blue-700'
+    case 'suspended':
+      return 'bg-red-100 text-red-700'
+    case 'abandoned':
+      return 'bg-slate-100 text-slate-700'
+    case 'completed':
+      return 'bg-emerald-100 text-emerald-700'
+    case 'withdrawn':
+      return 'bg-slate-100 text-slate-700'
+    case 'cancelled':
+      return 'bg-zinc-100 text-zinc-700'
+    default:
+      return 'bg-muted text-muted-foreground'
   }
-  if (lang.startsWith('fr')) return en
-  if (lang.startsWith('ar')) return en
-  return en
+}
+
+function milestoneModeLabel(mode?: string | null) {
+  const normalized = normalizeStatus(mode)
+  return normalized === 'multi' ? 'Multi milestone' : 'Single milestone'
+}
+
+function splitOwnerLabel(owner?: string | null) {
+  const normalized = normalizeStatus(owner)
+  return normalized === 'freelancer' ? 'Freelancer split' : 'Client split'
+}
+
+function milestoneStatusCounts(milestones: Milestone[]) {
+  return milestones.reduce(
+    (acc, milestone) => {
+      const status = normalizeStatus(milestone.status)
+      if (status in acc) {
+        ;(acc as any)[status] += 1
+      }
+      return acc
+    },
+    {
+      pending: 0,
+      funded: 0,
+      submitted: 0,
+      revision_requested: 0,
+      disputed: 0,
+      stalled: 0,
+      released: 0,
+      refunded: 0,
+    },
+  )
+}
+
+function getCurrentMilestone(milestones: Milestone[]) {
+  return (
+    milestones.find((m) => normalizeStatus(m.status) === 'submitted') ||
+    milestones.find((m) => normalizeStatus(m.status) === 'revision_requested') ||
+    milestones.find((m) => normalizeStatus(m.status) === 'funded') ||
+    milestones.find((m) => normalizeStatus(m.status) === 'pending') ||
+    milestones[0] ||
+    null
+  )
+}
+
+function getWorkflowStage(contract: ContractDetail, currentMilestone: Milestone | null) {
+  const status = normalizeStatus(contract.status)
+  const current = normalizeStatus(currentMilestone?.status)
+
+  if (contractFinishedStatuses.has(status)) return 'done'
+  if (status === 'suspended' || contract.has_suspension) return 'resolve'
+  if (current === 'submitted' || current === 'revision_requested' || current === 'disputed') return 'review'
+  if (current === 'funded') return 'delivery'
+  if (current === 'pending') return 'funding'
+  return 'planning'
+}
+
+function workflowSteps(stage: string) {
+  const steps = [
+    { key: 'planning', label: 'Plan', hint: 'Create and lock the split' },
+    { key: 'funding', label: 'Fund', hint: 'Pay the next milestone' },
+    { key: 'delivery', label: 'Work', hint: 'Submit the current milestone' },
+    { key: 'review', label: 'Review', hint: 'Approve, revise, or dispute' },
+    { key: 'resolve', label: 'Resolve', hint: 'Fix suspended or disputed work' },
+    { key: 'done', label: 'Done', hint: 'Close the contract' },
+  ]
+
+  const currentIndex = steps.findIndex((step) => step.key === stage)
+
+  return steps.map((step, index) => ({
+    ...step,
+    active: index === currentIndex,
+    done: currentIndex > index,
+  }))
+}
+
+function describeAction(action: DetailAction | null) {
+  if (!action) return 'No direct action right now.'
+  return action.label
 }
 
 export default function ContractDetailPage() {
   const params = useParams<{ publicId?: string }>()
-  const contractPublicId = String(params?.publicId || '')
+  const contractPublicId = String(params?.publicId ?? '')
   const router = useRouter()
-  const localeCtx = useLocale() as any
-  const copy = useMemo(() => getLocaleStrings(localeCtx?.locale), [localeCtx?.locale])
+  const planEditorRef = useRef<HTMLDivElement | null>(null)
 
-  const [state, setState] = useState<ContractDetailState>({
-    contract: null,
-    acceptedProposal: null,
-    loading: true,
-    actionMilestonePublicId: null,
-  })
-  const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false)
-  const [submitDialogMilestone, setSubmitDialogMilestone] = useState<MilestoneWithWorkflow | null>(null)
-  const [revisionDialogMilestone, setRevisionDialogMilestone] = useState<MilestoneWithWorkflow | null>(null)
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [contract, setContract] = useState<ContractDetail | null>(null)
+  const [acceptedProposal, setAcceptedProposal] = useState<ProposalWithPlans | null>(null)
+  const [actionMilestonePublicId, setActionMilestonePublicId] = useState<string | null>(null)
+  const [submitDialogMilestone, setSubmitDialogMilestone] = useState<Milestone | null>(null)
+  const [revisionDialogMilestone, setRevisionDialogMilestone] = useState<Milestone | null>(null)
 
-  const loadContract = async () => {
+  const load = async () => {
     if (!contractPublicId) return
-    setState((current) => ({ ...current, loading: true }))
 
+    setLoading(true)
     try {
       const contractRes = await contractsApi.get(contractPublicId)
-      const contract = contractRes.data as ContractWithWorkflow
+      const contractData = contractRes.data as ContractDetail
+      setContract(contractData)
 
-      let acceptedProposal: ProposalWithExtras | null = null
-      if (contract.viewer_role === 'client' && contract.job) {
+      let proposal: ProposalWithPlans | null = null
+      if (contractData.job_public_id) {
         try {
-          const proposalsRes = await proposalsApi.forJob(contract.job)
-          acceptedProposal =
-            (proposalsRes.data as ProposalWithExtras[]).find(
-              (proposal) => normalizeStatus(proposal.status) === 'accepted'
-            ) || null
+          const proposalsRes = await proposalsApi.forJob(String(contractData.job_public_id))
+          proposal =
+            (proposalsRes.data as ProposalWithPlans[]).find(
+              (item) => normalizeStatus(item.status) === 'accepted',
+            ) ?? null
         } catch {
-          acceptedProposal = null
+          proposal = null
         }
       }
 
-      setState({
-        contract,
-        acceptedProposal,
-        loading: false,
-        actionMilestonePublicId: null,
-      })
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to load contract.')
-      setState({
-        contract: null,
-        acceptedProposal: null,
-        loading: false,
-        actionMilestonePublicId: null,
-      })
+      setAcceptedProposal(proposal)
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || 'Failed to load contract.')
+      setContract(null)
+      setAcceptedProposal(null)
+    } finally {
+      setLoading(false)
     }
   }
 
   useEffect(() => {
-    void loadContract()
+    void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractPublicId])
 
   const reloadContract = async () => {
-    await loadContract()
+    await load()
   }
 
-  const contract = state.contract
-  const acceptedProposal = state.acceptedProposal
   const milestones = contract?.milestones ?? []
-  const viewerRole = (contract?.viewer_role ?? null) as ContractViewerRole
-  const isClientParty = viewerRole === 'client'
-  const isFreelancerParty = viewerRole === 'freelancer'
-  const hasSuspension = contract?.has_suspension ?? false
-  const isFundingLocked = contract?.is_funding_locked ?? false
-  const isFinished = contract?.is_finished ?? false
-  const nextAction = contract?.next_action ?? 'no_access'
-  const currentActionMessage = nextActionMessage(nextAction)
-  const actionMilestone =
-    milestones.find((milestone) => milestone.public_id === contract?.next_action_milestone_public_id) || null
+  const viewerRole = contract?.viewer_role ?? null
+  const isClientParty = viewerRole === 'client' || contract?.viewer_is_client === true
+  const isFreelancerParty = viewerRole === 'freelancer' || contract?.viewer_is_freelancer === true
+  const currentMilestone = getCurrentMilestone(milestones)
+  const stage = contract ? getWorkflowStage(contract, currentMilestone) : 'planning'
+  const steps = workflowSteps(stage)
+  const counts = milestoneStatusCounts(milestones)
 
-  const contractTitle = contract ? titleFromContract(contract) : `Contract #${contractPublicId}`
+  const firstPendingMilestone = useMemo(
+    () => milestones.find((m) => normalizeStatus(m.status) === 'pending') ?? null,
+    [milestones],
+  )
+  const firstFundedMilestone = useMemo(
+    () => milestones.find((m) => normalizeStatus(m.status) === 'funded') ?? null,
+    [milestones],
+  )
+
+  const isOrderingLocked =
+    contract?.is_finished ||
+    milestones.some((milestone) => milestoneOrderingLockedStatuses.has(normalizeStatus(milestone.status))) ||
+    false
+
+  const planLockedReason = isOrderingLocked
+    ? 'Ordering is locked because a funded or later milestone already exists.'
+    : undefined
+
+  const proposalPublicId = acceptedProposal?.public_id ?? null
+  const initialPlan = acceptedProposal?.milestone_plans?.[0] ?? null
+
+  const currentAction = useMemo<DetailAction | null>(() => {
+    if (!contract) return null
+
+    const status = normalizeStatus(contract.status)
+    const finished = contractFinishedStatuses.has(status)
+
+    if (finished) return { kind: 'none', label: 'Contract is finished.' }
+    if (contract.has_suspension || status === 'suspended') {
+      return { kind: 'none', label: 'Contract is suspended.' }
+    }
+
+    if (!proposalPublicId) {
+      return { kind: 'none', label: 'No accepted proposal was found yet.' }
+    }
+
+    if (isClientParty && status === 'pending_funding') {
+      if (!initialPlan || !initialPlan.items?.length) {
+        return { kind: 'scroll-plan', label: 'Build the milestone plan' }
+      }
+
+      if (firstPendingMilestone) {
+        const latest = normalizeStatus(firstPendingMilestone.latest_payment_attempt_internal_status)
+        if (retryablePaymentStatuses.has(latest)) {
+          return {
+            kind: 'retry',
+            label: 'Retry funding the first milestone',
+            milestonePublicId: firstPendingMilestone.public_id,
+          }
+        }
+        if (openPaymentStatuses.has(latest) && firstPendingMilestone.latest_payment_attempt_checkout_url) {
+          return {
+            kind: 'continue',
+            label: 'Continue the open checkout',
+            milestonePublicId: firstPendingMilestone.public_id,
+          }
+        }
+        return {
+          kind: 'fund',
+          label: 'Fund the first milestone',
+          milestonePublicId: firstPendingMilestone.public_id,
+        }
+      }
+
+      return { kind: 'scroll-plan', label: 'Build the milestone plan' }
+    }
+
+    const target = currentMilestone
+
+    if (isClientParty && target) {
+      const targetStatus = normalizeStatus(target.status)
+      if (targetStatus === 'submitted') {
+        return {
+          kind: 'scroll-milestone',
+          label: 'Review the submitted milestone',
+          milestonePublicId: target.public_id,
+        }
+      }
+      if (targetStatus === 'revision_requested') {
+        return {
+          kind: 'scroll-milestone',
+          label: 'Review the revision milestone',
+          milestonePublicId: target.public_id,
+        }
+      }
+    }
+
+    if (isFreelancerParty && target) {
+      const targetStatus = normalizeStatus(target.status)
+      if (targetStatus === 'funded') {
+        return {
+          kind: 'scroll-milestone',
+          label: 'Submit the funded milestone',
+          milestonePublicId: target.public_id,
+        }
+      }
+      if (targetStatus === 'revision_requested') {
+        return {
+          kind: 'scroll-milestone',
+          label: 'Submit the revision',
+          milestonePublicId: target.public_id,
+        }
+      }
+    }
+
+    return null
+  }, [contract, proposalPublicId, initialPlan, firstPendingMilestone, currentMilestone, isClientParty, isFreelancerParty])
+
+  const scrollToPlan = () => {
+    planEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const scrollToMilestone = (publicId: string) => {
+    document.getElementById(`milestone-${publicId}`)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    })
+  }
 
   const fundMilestone = async (milestonePublicId: string) => {
-    setState((current) => ({ ...current, actionMilestonePublicId: milestonePublicId }))
+    setActionMilestonePublicId(milestonePublicId)
     try {
       const { data } = await payments.fundMilestone(milestonePublicId)
       window.location.href = data.checkout_url
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to initiate payment.')
-      setState((current) => ({ ...current, actionMilestonePublicId: null }))
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || 'Failed to initiate payment.')
+    } finally {
+      setActionMilestonePublicId(null)
     }
   }
 
-  const retryFunding = async (milestonePublicId: string) => {
-    setState((current) => ({ ...current, actionMilestonePublicId: milestonePublicId }))
+  const retryFundMilestone = async (milestonePublicId: string) => {
+    setActionMilestonePublicId(milestonePublicId)
     try {
       const { data } = await payments.retryFundMilestone(milestonePublicId)
       window.location.href = data.checkout_url
-    } catch (err: any) {
-      if (err?.response?.status === 409) {
-        toast.info(err?.response?.data?.detail || 'This milestone is already paid.')
+    } catch (error: any) {
+      if (error?.response?.status === 409) {
+        toast.info(error?.response?.data?.detail || 'This milestone is already paid.')
         await reloadContract()
         return
       }
-      toast.error(err?.response?.data?.detail || 'Failed to create a retry checkout.')
-      setState((current) => ({ ...current, actionMilestonePublicId: null }))
+      toast.error(error?.response?.data?.detail || 'Failed to create retry checkout.')
+    } finally {
+      setActionMilestonePublicId(null)
     }
   }
 
   const approveMilestone = async (milestonePublicId: string) => {
-    setState((current) => ({ ...current, actionMilestonePublicId: milestonePublicId }))
+    setActionMilestonePublicId(milestonePublicId)
     try {
       await contractsApi.approveMilestone(milestonePublicId)
       toast.success('Milestone approved.')
       await reloadContract()
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to approve milestone.')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || 'Failed to approve milestone.')
     } finally {
-      setState((current) => ({ ...current, actionMilestonePublicId: null }))
+      setActionMilestonePublicId(null)
     }
   }
 
   const disputeMilestone = async (milestonePublicId: string) => {
-    setState((current) => ({ ...current, actionMilestonePublicId: milestonePublicId }))
+    setActionMilestonePublicId(milestonePublicId)
     try {
       await contractsApi.disputeMilestone(milestonePublicId)
       toast.success('Dispute opened.')
       await reloadContract()
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to open dispute.')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || 'Failed to open dispute.')
     } finally {
-      setState((current) => ({ ...current, actionMilestonePublicId: null }))
+      setActionMilestonePublicId(null)
     }
   }
 
-  const submitWork = (milestone: MilestoneWithWorkflow) => setSubmitDialogMilestone(milestone)
-  const requestRevision = (milestone: MilestoneWithWorkflow) => setRevisionDialogMilestone(milestone)
-  const continueFunding = (checkoutUrl: string) => {
-    window.location.href = checkoutUrl
+  const openDeliverable = async (milestone: Milestone) => {
+    const link = milestone.submission_link?.trim()
+    if (link) {
+      window.open(link, '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    toast.info('No deliverable link was attached to this milestone yet.')
   }
 
-  if (state.loading) {
+  const handlePrimaryAction = () => {
+    if (!currentAction) return
+    if (currentAction.kind === 'scroll-plan') {
+      scrollToPlan()
+      return
+    }
+    if (currentAction.kind === 'scroll-milestone') {
+      scrollToMilestone(currentAction.milestonePublicId)
+      return
+    }
+    if (currentAction.kind === 'fund') {
+      void fundMilestone(currentAction.milestonePublicId)
+      return
+    }
+    if (currentAction.kind === 'continue') {
+      const milestone = milestones.find((m) => m.public_id === currentAction.milestonePublicId)
+      if (milestone?.latest_payment_attempt_checkout_url) {
+        window.location.href = milestone.latest_payment_attempt_checkout_url
+      }
+      return
+    }
+    if (currentAction.kind === 'retry') {
+      void retryFundMilestone(currentAction.milestonePublicId)
+    }
+  }
+
+  const contractTitle =
+    contract?.title || contract?.job_title || contract?.source_label || `Contract #${contract?.public_id ?? ''}`
+
+  if (loading) {
     return (
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         <div className="h-8 w-48 rounded-xl bg-muted" />
-        <div className="h-40 rounded-3xl bg-muted" />
-        <div className="h-60 rounded-3xl bg-muted" />
+        <div className="grid gap-6 xl:grid-cols-[1.35fr_0.9fr]">
+          <div className="space-y-6">
+            <div className="h-48 rounded-3xl bg-muted" />
+            <div className="h-28 rounded-3xl bg-muted" />
+            <div className="h-80 rounded-3xl bg-muted" />
+          </div>
+          <div className="space-y-6">
+            <div className="h-44 rounded-3xl bg-muted" />
+            <div className="h-44 rounded-3xl bg-muted" />
+            <div className="h-44 rounded-3xl bg-muted" />
+          </div>
+        </div>
       </main>
     )
   }
@@ -222,12 +511,14 @@ export default function ContractDetailPage() {
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
         <Card className="rounded-3xl">
           <CardHeader>
-            <CardTitle>{copy.notFoundTitle}</CardTitle>
-            <CardDescription>{copy.notFoundDescription}</CardDescription>
+            <CardTitle>Contract not found</CardTitle>
+            <CardDescription>
+              You might not have access to this contract, or it may no longer exist.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link href={ROUTES.dashboard.contracts.root}>{copy.back}</Link>
+              <Link href={ROUTES.dashboard.contracts.root}>Back to contracts</Link>
             </Button>
           </CardContent>
         </Card>
@@ -235,249 +526,279 @@ export default function ContractDetailPage() {
     )
   }
 
-  const primaryAction = getContractPrimaryAction(contract, viewerRole)
-
-  const handlePrimary = () => {
-    if (!primaryAction) return
-
-    if (primaryAction.kind === 'fund') return void fundMilestone(primaryAction.milestonePublicId)
-    if (primaryAction.kind === 'retry') return void retryFunding(primaryAction.milestonePublicId)
-    if (primaryAction.kind === 'continue') return continueFunding(primaryAction.checkoutUrl)
-    if (primaryAction.kind === 'review') return setReviewDialogOpen(true)
-    if (primaryAction.kind === 'submit') {
-      const milestone = milestones.find((item) => item.public_id === primaryAction.milestonePublicId)
-      if (milestone) setSubmitDialogMilestone(milestone)
-      return
-    }
-    if (primaryAction.kind === 'open') {
-      const target = contract.next_action_milestone_public_id
-      if (target) {
-        document.getElementById(`milestone-${target}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      }
-    }
-  }
-
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-      <Button asChild variant="ghost" className="-ml-2 w-fit">
+    <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <Button asChild variant="ghost" className="-ml-3 w-fit">
         <Link href={ROUTES.dashboard.contracts.root}>
-          <ArrowLeftIcon className="mr-2 h-4 w-4" />
-          {copy.back}
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to contracts
         </Link>
       </Button>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-3xl font-semibold tracking-tight">{contractTitle}</h1>
-            <Badge className={contractStatusTone(contract.status)}>{contract.status_label || contract.status}</Badge>
-            {viewerRole ? (
-              <Badge variant="secondary">{viewerRole === 'client' ? copy.clientWorkspace : copy.freelancerWorkspace}</Badge>
-            ) : (
-              <Badge variant="secondary">No access</Badge>
-            )}
-            {isFundingLocked ? <Badge variant="outline">Funding locked</Badge> : null}
-            {hasSuspension ? <Badge variant="destructive">Suspended</Badge> : null}
-            {isFinished ? <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Finished</Badge> : null}
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Contract #{contract.public_id} · {money(contract.agreed_price)} DZD · Due {new Date(contract.deadline).toLocaleDateString()}
-          </p>
-        </div>
+      <div className="grid gap-6 xl:grid-cols-[1.35fr_0.9fr]">
+        <div className="space-y-6">
+          <Card className="overflow-hidden rounded-3xl border-border/70 shadow-sm">
+            <CardContent className="space-y-5 p-6 sm:p-8">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className={contractStatusTone(contract.status)}>{contract.status_label || contract.status}</Badge>
+                    <Badge variant="secondary">{milestoneModeLabel(contract.milestone_mode)}</Badge>
+                    <Badge variant="outline">{splitOwnerLabel(contract.split_owner)}</Badge>
+                    {contract.collab_allowed ? <Badge variant="outline">Collabs allowed</Badge> : null}
+                  </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline">{contract.funding_progress ?? 0}% funded</Badge>
-          <Badge variant="outline">{milestones.length} milestone{milestones.length === 1 ? '' : 's'}</Badge>
-        </div>
-      </div>
-
-      <Card className={`rounded-3xl border ${hasSuspension ? 'border-red-200 bg-red-50/40' : 'border-border'}`}>
-        <CardContent className="p-5">
-          <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className={`mt-1 rounded-full border p-2 ${nextActionTone(nextAction)}`}>
-                  {hasSuspension ? <ShieldAlertIcon className="h-4 w-4" /> : <StarIcon className="h-4 w-4" />}
+                  <div className="space-y-2">
+                    <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{contractTitle}</h1>
+                    <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                      {contract.source_label || 'Milestone contract'} · Client{' '}
+                      <span className="font-medium text-foreground">{contract.client_username}</span> · Freelancer{' '}
+                      <span className="font-medium text-foreground">{contract.freelancer_username}</span>
+                    </p>
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">{copy.nextAction}</p>
-                  <p className="text-sm text-muted-foreground">{currentActionMessage}</p>
+                <div className="flex flex-col items-end gap-2">
+                  <div className="rounded-2xl border bg-muted/30 px-4 py-3 text-right">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Agreed amount</p>
+                    <p className="text-2xl font-semibold">{money(contract.agreed_price)} DZD</p>
+                  </div>
+
+                  <div className="rounded-2xl border bg-muted/30 px-4 py-3 text-right">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Deadline</p>
+                    <p className="text-base font-medium">
+                      {new Date(contract.deadline).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {actionMilestone ? (
-                <div className="rounded-2xl border bg-background/80 p-4">
-                  <p className="text-sm font-medium">Action milestone</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {actionMilestone.title} · {money(actionMilestone.amount)} DZD · {normalizeStatus(actionMilestone.status).replaceAll('_', ' ')}
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl border bg-background p-4">
+                  <p className="text-xs text-muted-foreground">Remaining amount</p>
+                  <p className="mt-1 text-lg font-semibold">{money(contract.remaining_amount || contract.agreed_price)} DZD</p>
+                </div>
+                <div className="rounded-2xl border bg-background p-4">
+                  <p className="text-xs text-muted-foreground">Working on</p>
+                  <p className="mt-1 text-lg font-semibold">
+                    {currentMilestone ? currentMilestone.title : 'Plan stage'}
                   </p>
                 </div>
-              ) : null}
-
-              {primaryAction ? (
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={handlePrimary}>
-                    {primaryAction.kind === 'fund' ? (
-                      <>
-                        <HandCoinsIcon className="mr-2 h-4 w-4" />
-                        {state.actionMilestonePublicId === primaryAction.milestonePublicId ? copy.loadingCheckout : 'Fund escrow'}
-                      </>
-                    ) : primaryAction.kind === 'retry' ? (
-                      <>
-                        <HandCoinsIcon className="mr-2 h-4 w-4" />
-                        {state.actionMilestonePublicId === primaryAction.milestonePublicId ? copy.creatingRetry : 'Retry funding'}
-                      </>
-                    ) : primaryAction.kind === 'review' ? (
-                      <>
-                        <StarIcon className="mr-2 h-4 w-4" />
-                        Leave review
-                      </>
-                    ) : primaryAction.kind === 'submit' ? (
-                      <>
-                        <PlusIcon className="mr-2 h-4 w-4" />
-                        {primaryAction.label}
-                      </>
-                    ) : (
-                      primaryAction.label
-                    )}
-                  </Button>
+                <div className="rounded-2xl border bg-background p-4">
+                  <p className="text-xs text-muted-foreground">Current status</p>
+                  <p className="mt-1 text-lg font-semibold capitalize">
+                    {normalizeStatus(contract.status).replaceAll('_', ' ')}
+                  </p>
                 </div>
-              ) : null}
-            </div>
+                <div className="rounded-2xl border bg-background p-4">
+                  <p className="text-xs text-muted-foreground">Milestones</p>
+                  <p className="mt-1 text-lg font-semibold">{milestones.length}</p>
+                </div>
+              </div>
 
-            <ContractProgress contract={contract} />
-          </div>
-        </CardContent>
-      </Card>
+              <div className="rounded-2xl border bg-muted/20 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Next action</p>
+                    <p className="text-sm text-muted-foreground">{describeAction(currentAction)}</p>
+                  </div>
+                  {currentAction ? (
+                    <Button onClick={handlePrimaryAction}>
+                      {currentAction.kind === 'fund' ? <HandCoins className="mr-2 h-4 w-4" /> : null}
+                      {currentAction.kind === 'retry' ? <Sparkles className="mr-2 h-4 w-4" /> : null}
+                      {currentAction.kind === 'scroll-plan' ? <ListChecks className="mr-2 h-4 w-4" /> : null}
+                      {currentAction.kind === 'scroll-milestone' ? <ChevronRight className="mr-2 h-4 w-4" /> : null}
+                      {currentAction.label}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      <section className="grid gap-4 md:grid-cols-4">
-        <Card className="rounded-3xl"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Client</p><p className="mt-2 font-medium">{contract.client_username || '—'}</p></CardContent></Card>
-        <Card className="rounded-3xl"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Freelancer</p><p className="mt-2 font-medium">{contract.freelancer_username || '—'}</p></CardContent></Card>
-        <Card className="rounded-3xl"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Remaining amount</p><p className="mt-2 font-medium">{money(contract.remaining_amount ?? 0)} DZD</p></CardContent></Card>
-        <Card className="rounded-3xl"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Next step</p><p className="mt-2 font-medium">{normalizeStatus(nextAction).replaceAll('_', ' ') || '—'}</p></CardContent></Card>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-        {isClientParty && acceptedProposal ? (
-          <Card className="rounded-3xl">
+          <Card className="rounded-3xl border-border/70 shadow-sm">
             <CardHeader>
-              <CardTitle>{copy.acceptedProposal}</CardTitle>
-              <CardDescription>This is the proposal that locked the contract terms.</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Workflow className="h-5 w-5" />
+                Contract flow
+              </CardTitle>
+              <CardDescription>
+                The full contract life cycle is shown here. The milestone list stays clean; the plan editor handles ordering.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="flex items-start gap-3">
-                <UserIcon className="mt-1 h-4 w-4 text-muted-foreground" />
-                <div className="space-y-1">
-                  <p className="font-medium">{acceptedProposal.freelancer_username}</p>
-                  <p className="text-sm text-muted-foreground">{acceptedProposal.cover_letter}</p>
+            <CardContent>
+              <div className="grid gap-3 md:grid-cols-5">
+                {steps.map((step) => (
+                  <div
+                    key={step.key}
+                    className={`rounded-2xl border p-4 ${
+                      step.active
+                        ? 'border-primary/40 bg-primary/5'
+                        : step.done
+                          ? 'border-emerald-200 bg-emerald-50'
+                          : 'border-border bg-background'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium">{step.label}</p>
+                      {step.done ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : null}
+                      {step.active ? <Clock3 className="h-4 w-4 text-primary" /> : null}
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">{step.hint}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div ref={planEditorRef} id="milestone-plan-editor">
+            {proposalPublicId ? (
+              <MilestonePlanEditor
+                proposalPublicId={proposalPublicId}
+                initialPlan={initialPlan}
+                locked={isOrderingLocked}
+                disabledReason={planLockedReason}
+                onSaved={reloadContract}
+              />
+            ) : (
+              <Card className="rounded-3xl border-border/70 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Milestone plan</CardTitle>
+                  <CardDescription>
+                    No accepted proposal was found, so the milestone plan editor is unavailable.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            )}
+          </div>
+
+            <ContractMilestoneTimeline
+              milestones={milestones}
+              viewerRole={viewerRole}
+              firstPendingMilestonePublicId={contract.first_pending_milestone_public_id}
+              currentMilestonePublicId={currentMilestone?.public_id ?? null}
+              isFinished={contract.is_finished}
+              hasSuspension={contract.has_suspension}
+              busyMilestonePublicId={actionMilestonePublicId}
+              onFundMilestone={fundMilestone}
+              onRetryMilestone={retryFundMilestone}
+              onOpenSubmitDialog={(milestone) => setSubmitDialogMilestone(milestone)}
+              onOpenRevisionDialog={(milestone) => setRevisionDialogMilestone(milestone)}
+              onApproveMilestone={approveMilestone}
+              onDisputeMilestone={disputeMilestone}
+              onOpenDeliverable={openDeliverable}
+            />
+        </div>
+
+        <div className="space-y-6">
+          <Card className="rounded-3xl border-border/70 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <DollarSign className="h-5 w-5" />
+                Contract summary
+              </CardTitle>
+              <CardDescription>
+                Useful numbers and the current execution state.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs text-muted-foreground">Client</p>
+                  <p className="mt-1 font-medium">{contract.client_username}</p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs text-muted-foreground">Freelancer</p>
+                  <p className="mt-1 font-medium">{contract.freelancer_username}</p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs text-muted-foreground">Proposal split owner</p>
+                  <p className="mt-1 font-medium">{splitOwnerLabel(contract.split_owner)}</p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs text-muted-foreground">Milestone mode</p>
+                  <p className="mt-1 font-medium">{milestoneModeLabel(contract.milestone_mode)}</p>
                 </div>
               </div>
 
               <Separator />
 
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border p-4"><p className="text-xs text-muted-foreground">Bid price</p><p className="mt-1 font-semibold">{money(acceptedProposal.proposed_price)} DZD</p></div>
-                <div className="rounded-2xl border p-4"><p className="text-xs text-muted-foreground">Delivery</p><p className="mt-1 font-semibold">{acceptedProposal.delivery_days} days</p></div>
-                <div className="rounded-2xl border p-4"><p className="text-xs text-muted-foreground">Submitted</p><p className="mt-1 font-semibold">{new Date(acceptedProposal.created_at).toLocaleDateString()}</p></div>
+                <div className="rounded-2xl bg-muted/40 p-4">
+                  <p className="text-xs text-muted-foreground">Pending</p>
+                  <p className="mt-1 text-xl font-semibold">{counts.pending}</p>
+                </div>
+                <div className="rounded-2xl bg-muted/40 p-4">
+                  <p className="text-xs text-muted-foreground">Funded</p>
+                  <p className="mt-1 text-xl font-semibold">{counts.funded}</p>
+                </div>
+                <div className="rounded-2xl bg-muted/40 p-4">
+                  <p className="text-xs text-muted-foreground">Released</p>
+                  <p className="mt-1 text-xl font-semibold">{counts.released}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border bg-muted/20 p-4">
+                <p className="text-sm font-medium">Current milestone</p>
+                {currentMilestone ? (
+                  <>
+                    <p className="mt-1 text-sm text-muted-foreground">{currentMilestone.title}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {money(currentMilestone.amount)} DZD · Due {new Date(currentMilestone.due_date).toLocaleDateString()}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    No active milestone yet. Build the plan above to get started.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
-        ) : (
-          <Card className="rounded-3xl">
+
+          <Card className="rounded-3xl border-border/70 shadow-sm">
             <CardHeader>
-              <CardTitle>{copy.contractBrief}</CardTitle>
-              <CardDescription>The contract overview and workspace context.</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <ShieldAlert className="h-5 w-5" />
+                State guide
+              </CardTitle>
+              <CardDescription>
+                Contract and milestone status rules stay simple here.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-2xl border p-4">
-                <p className="text-sm font-medium">Project</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {contract.job_title || contract.source_label || contract.title || `Contract #${contract.public_id}`}
-                </p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border p-4"><p className="text-xs text-muted-foreground">Budget</p><p className="mt-1 font-semibold">{money(contract.agreed_price)} DZD</p></div>
-                <div className="rounded-2xl border p-4"><p className="text-xs text-muted-foreground">Deadline</p><p className="mt-1 font-semibold">{new Date(contract.deadline).toLocaleDateString()}</p></div>
-              </div>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <p>• The plan editor is editable until a funded milestone exists.</p>
+              <p>• Ordering locks when a milestone becomes funded or later.</p>
+              <p>• Milestone work is submitted from the timeline actions.</p>
+              <p>• Approval releases escrow and moves the contract forward.</p>
             </CardContent>
           </Card>
-        )}
+        </div>
+      </div>
 
-        <Card className="rounded-3xl">
-          <CardHeader className="flex flex-row items-center justify-between gap-3">
-            <div>
-              <CardTitle>{copy.milestones}</CardTitle>
-              <CardDescription>Milestone flow, funding state, submissions, approvals, and disputes.</CardDescription>
-            </div>
+      <SubmitWorkDialog
+        open={!!submitDialogMilestone}
+        onOpenChange={(open) => {
+          if (!open) setSubmitDialogMilestone(null)
+        }}
+        milestonePublicId={submitDialogMilestone?.public_id ?? ''}
+        onSubmitted={() => {
+          setSubmitDialogMilestone(null)
+          void reloadContract()
+        }}
+      />
 
-            {isClientParty && !hasSuspension && !isFundingLocked ? (
-              <Button onClick={() => setMilestoneDialogOpen(true)}>
-                <PlusIcon className="mr-2 h-4 w-4" />
-                {copy.addMilestone}
-              </Button>
-            ) : null}
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-2xl border bg-muted/20 p-4">
-              <p className="text-sm font-medium">Workspace state</p>
-              <p className="text-sm text-muted-foreground">{currentActionMessage}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <Card className="rounded-3xl">
-        <CardHeader>
-          <CardTitle>Milestone timeline</CardTitle>
-          <CardDescription>This is the live contract journey. Use the milestone actions beside each item.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ContractActivityTimeline
-            contract={contract}
-            viewerRole={viewerRole}
-            busyMilestonePublicId={state.actionMilestonePublicId}
-            onFund={(milestonePublicId) => void fundMilestone(milestonePublicId)}
-            onRetry={(milestonePublicId) => void retryFunding(milestonePublicId)}
-            onContinue={(checkoutUrl) => { window.location.href = checkoutUrl }}
-            onSubmit={(milestone) => setSubmitDialogMilestone(milestone)}
-            onApprove={(milestonePublicId) => void approveMilestone(milestonePublicId)}
-            onRequestRevision={(milestone) => setRevisionDialogMilestone(milestone)}
-            onDispute={(milestonePublicId) => void disputeMilestone(milestonePublicId)}
-          />
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-3xl">
-        <CardHeader>
-          <CardTitle>{copy.summary}</CardTitle>
-          <CardDescription>Useful numbers at a glance.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-2xl border p-4"><p className="text-sm text-muted-foreground">Milestones</p><p className="mt-1 text-lg font-semibold">{milestones.length}</p></div>
-          <div className="rounded-2xl border p-4"><p className="text-sm text-muted-foreground">Funded</p><p className="mt-1 text-lg font-semibold">{milestones.filter((milestone) => normalizeStatus(milestone.status) === 'funded').length}</p></div>
-          <div className="rounded-2xl border p-4"><p className="text-sm text-muted-foreground">Submitted</p><p className="mt-1 text-lg font-semibold">{milestones.filter((milestone) => normalizeStatus(milestone.status) === 'submitted').length}</p></div>
-          <div className="rounded-2xl border p-4"><p className="text-sm text-muted-foreground">Released</p><p className="mt-1 text-lg font-semibold">{milestones.filter((milestone) => normalizeStatus(milestone.status) === 'released').length}</p></div>
-        </CardContent>
-      </Card>
-
-      <CreateMilestoneDialog open={milestoneDialogOpen} onOpenChange={setMilestoneDialogOpen} contractPublicId={contract.public_id} onCreated={reloadContract} />
-      <SubmitWorkDialog open={Boolean(submitDialogMilestone)} onOpenChange={(open) => !open && setSubmitDialogMilestone(null)} milestonePublicId={submitDialogMilestone?.public_id || ''} onSubmitted={() => { setSubmitDialogMilestone(null); void reloadContract() }} />
-      <RequestRevisionDialog open={Boolean(revisionDialogMilestone)} onOpenChange={(open) => !open && setRevisionDialogMilestone(null)} milestonePublicId={revisionDialogMilestone?.public_id || ''} onRequested={() => { setRevisionDialogMilestone(null); void reloadContract() }} />
-
-      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Review contract</DialogTitle></DialogHeader>
-          <div className="space-y-3 py-2 text-sm text-muted-foreground">
-            <p>Open the reviews area to leave feedback for this contract.</p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RequestRevisionDialog
+        open={!!revisionDialogMilestone}
+        onOpenChange={(open) => {
+          if (!open) setRevisionDialogMilestone(null)
+        }}
+        milestonePublicId={revisionDialogMilestone?.public_id ?? ''}
+        onRequested={() => {
+          setRevisionDialogMilestone(null)
+          void reloadContract()
+        }}
+      />
     </main>
   )
 }

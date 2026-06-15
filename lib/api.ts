@@ -22,6 +22,10 @@ import type {
   Order,
   PaymentAttemptStatusResponse,
   FundMilestoneResponse,
+  Milestone,
+  MilestonePlan,
+  MilestonePlanDraftPayload,
+  MilestoneSubmission,
 } from './types'
 import { ROUTES } from './routes'
 
@@ -163,14 +167,22 @@ export const clients = {
 
 // ─── Jobs ────────────────────────────────────────────────────────────────────
 
+export interface JobCreatePayload extends Partial<Job> {
+  milestone_plan?: MilestonePlanDraftPayload
+}
+
 export const jobs = {
   list: (params?: { search?: string; category?: string; level?: string }) =>
     api.get<Job[]>('/jobs/', { params }),
+
   mine: () => api.get<Job[]>('/jobs/mine/'),
   get: (publicId: string) => api.get<Job>(`/jobs/${publicId}/`),
-  create: (data: Partial<Job>) => api.post<Job>('/jobs/create/', data),
+
+  create: (data: JobCreatePayload) => api.post<Job>('/jobs/create/', data),
+
   update: (publicId: string, data: Partial<Job>) =>
     api.put<Job>(`/jobs/${publicId}/edit/`, data),
+
   categories: () => api.get<Category[]>('/jobs/categories/'),
 }
 
@@ -214,46 +226,40 @@ export const orders = {
 // ─── Contracts ───────────────────────────────────────────────────────────────
 
 export const contracts = {
-  list: () => api.get(`/contracts/`),
-  get: (publicId: string) => api.get(`/contracts/${publicId}/`),
-  cancel: (publicId: string) => api.post(`/contracts/${publicId}/cancel/`),
+  list: () => api.get<Contract[]>('/contracts/'),
+
+  get: (publicId: string) => api.get<Contract>(`/contracts/${publicId}/`),
+
+  cancel: (publicId: string) => api.post<Contract>(`/contracts/${publicId}/cancel/`),
+
   events: (publicId: string) => api.get(`/contracts/${publicId}/events/`),
 
-  createMilestonePlan: (proposalPublicId: string, data: any) =>
-    api.post(`/contracts/proposals/${proposalPublicId}/milestone-plans/`, data),
+  createMilestonePlan: (proposalPublicId: string, data: MilestonePlanDraftPayload) =>
+    api.post<MilestonePlan>(`/contracts/proposals/${proposalPublicId}/milestone-plans/`, data),
 
   getMilestonePlan: (publicId: string) =>
-    api.get(`/contracts/milestone-plans/${publicId}/`),
+    api.get<MilestonePlan>(`/contracts/milestone-plans/${publicId}/`),
 
-  updateMilestonePlan: (publicId: string, data: any) =>
-    api.patch(`/contracts/milestone-plans/${publicId}/`, data),
+  updateMilestonePlan: (publicId: string, data: MilestonePlanDraftPayload) =>
+    api.patch<MilestonePlan>(`/contracts/milestone-plans/${publicId}/`, data),
 
   approveMilestonePlan: (publicId: string) =>
-    api.post(`/contracts/milestone-plans/${publicId}/approve/`),
+    api.post<Contract | MilestonePlan>(`/contracts/milestone-plans/${publicId}/approve/`),
 
-  submitMilestone: (milestonePublicId: string, data?: any) =>
-    api.post(`/contracts/milestones/${milestonePublicId}/submit/`, data ?? {}),
+  submitMilestone: (milestonePublicId: string, data: { note?: string; external_link?: string; payload?: Record<string, unknown> }) =>
+    api.post<MilestoneSubmission>(`/contracts/milestones/${milestonePublicId}/submit/`, data ?? {}),
 
-  requestRevision: (milestonePublicId: string, data?: any) =>
-    api.post(`/contracts/milestones/${milestonePublicId}/request-revision/`, data ?? {}),
+  requestRevision: (milestonePublicId: string, data: { revision_note?: string; revision_scope?: string }) =>
+    api.post<Milestone>(`/contracts/milestones/${milestonePublicId}/request-revision/`, data ?? {}),
 
-  approveMilestone: (milestonePublicId: string) =>
-    api.post(`/contracts/milestones/${milestonePublicId}/approve/`),
+  approveMilestone: (milestonePublicId: string, data?: { review_note?: string }) =>
+    api.post<Milestone>(`/contracts/milestones/${milestonePublicId}/approve/`, data ?? {}),
 
-  disputeMilestone: (milestonePublicId: string) =>
-    api.post(`/contracts/milestones/${milestonePublicId}/dispute/`),
+  disputeMilestone: (milestonePublicId: string, data?: { reason?: string }) =>
+    api.post<Milestone>(`/contracts/milestones/${milestonePublicId}/dispute/`, data ?? {}),
 
   deliverable: (milestonePublicId: string) =>
-    api.get(`/contracts/milestones/${milestonePublicId}/deliverable/`),
-
-  createCollabRequest: (milestonePublicId: string, data: any) =>
-    api.post(`/contracts/milestones/${milestonePublicId}/collabs/`, data),
-
-  applyToCollab: (requestPublicId: string, data?: any) =>
-    api.post(`/contracts/collabs/${requestPublicId}/apply/`, data ?? {}),
-
-  acceptCollabApplication: (applicationPublicId: string) =>
-    api.post(`/contracts/collab-applications/${applicationPublicId}/accept/`),
+    api.get<{ url: string }>(`/contracts/milestones/${milestonePublicId}/deliverable/`),
 }
 
 // ─── Payments ────────────────────────────────────────────────────────────────
