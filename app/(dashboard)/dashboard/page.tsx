@@ -163,7 +163,7 @@ export default function DashboardPage() {
             loading={loading}
           >
             {myContracts.map((c, i) => (
-              <ListRow key={c.public_id} index={i} href={ROUTES.dashboard.contracts.contractDetail(c.public_id)}>
+              <ListRow key={c.public_id} index={i} href={ROUTES.dashboard.contracts.detail(c.public_id)}>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{c.job_title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">

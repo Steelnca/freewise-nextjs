@@ -43,7 +43,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       { href: ROUTES.dashboard.payments.root, label: t.dashboard.payments, icon: WalletIcon },
 
       { href: ROUTES.dashboard.jobs.root,      label: t.dashboard.myJobs,     icon: BriefcaseIcon },
-      { href: ROUTES.dashboard.jobs.jobPost,      label: t.dashboard.postJob,    icon: PlusIcon },
+      { href: ROUTES.dashboard.jobs.post,      label: t.dashboard.postJob,    icon: PlusIcon },
       { href: ROUTES.dashboard.services,  label: t.nav.services,         icon: StoreIcon },
       { href: ROUTES.dashboard.contracts.root, label: t.dashboard.contracts,  icon: FileTextIcon },
       { href: ROUTES.account.profile,   label: t.dashboard.profile,    icon: UserIcon },
@@ -52,7 +52,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       { href: ROUTES.dashboard.root,           label: t.dashboard.overview,    icon: LayoutDashboardIcon },
       { href: ROUTES.dashboard.payments.root, label: t.dashboard.payments, icon: WalletIcon },
       { href: ROUTES.dashboard.jobs.root,      label: t.dashboard.browseJobs,  icon: BriefcaseIcon },
-      { href: ROUTES.dashboard.proposals, label: t.dashboard.myProposals, icon: FileTextIcon },
+      { href: ROUTES.dashboard.proposals.root, label: t.dashboard.myProposals, icon: FileTextIcon },
       { href: ROUTES.dashboard.services,  label: t.dashboard.myServices,  icon: StoreIcon },
       { href: ROUTES.dashboard.contracts.root, label: t.dashboard.contracts,   icon: WalletIcon },
       { href: ROUTES.account.profile,   label: t.dashboard.profile,     icon: UserIcon },

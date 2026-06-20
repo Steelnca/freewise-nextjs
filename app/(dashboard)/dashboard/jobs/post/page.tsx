@@ -21,6 +21,8 @@ import type {
   ExperienceLevel,
   MilestonePlanDraftItem,
   MilestonePlanDraftPayload,
+  JobCreatePayload,
+  PricingMode,
 } from '@/lib/types'
 
 import { Badge } from '@/components/ui/badge'
@@ -35,8 +37,9 @@ import { Textarea } from '@/components/ui/textarea'
 type JobFormState = {
   title: string
   description: string
-  category_id: string
+  category_slug: string
   experience_level: string
+  pricing_mode: PricingMode
   budget_total: string
   deadline: string
 }
@@ -203,7 +206,7 @@ function MilestonePlanEditor({
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">#{index + 1}</Badge>
-                    {item.can_be_suggested ? <Badge>suggestable</Badge> : <Badge variant="destructive">locked</Badge>}
+                    {item.can_be_suggested ? <Badge>suggestible</Badge> : <Badge variant="destructive">locked</Badge>}
                   </div>
 
                   <div className="flex items-center gap-1">
@@ -321,7 +324,9 @@ export default function JobPostPage() {
   const router = useRouter()
 
   const [categories, setCategories] = useState<Category[]>([])
+  const [pricingModes, setPricingModes] = useState<PricingMode[]>(['FIXED', 'NEGOTIABLE'])
   const [loadingCategories, setLoadingCategories] = useState(false)
+  const [loadingPricingModes, setLoadingPricingModes] = useState(false)
   const [saving, setSaving] = useState(false)
   const [createPlanNow, setCreatePlanNow] = useState(false)
   const [milestonePlan, setMilestonePlan] = useState<MilestonePlanDraftPayload | null>(null)
@@ -329,8 +334,9 @@ export default function JobPostPage() {
   const [form, setForm] = useState<JobFormState>({
     title: '',
     description: '',
-    category_id: '',
+    category_slug: '',
     experience_level: 'INTERMEDIATE',
+    pricing_mode: 'NEGOTIABLE',
     budget_total: '',
     deadline: '',
   })
@@ -378,7 +384,7 @@ export default function JobPostPage() {
   const validate = () => {
     if (!form.title.trim()) return 'Title is required.'
     if (!form.description.trim()) return 'Description is required.'
-    if (!form.category_id) return 'Category is required.'
+    if (!form.category_slug) return 'Category is required.'
     if (!form.deadline) return 'Deadline is required.'
 
     if (createPlanNow) {
@@ -404,12 +410,13 @@ export default function JobPostPage() {
 
     setSaving(true)
     try {
-      const payload: any = {
+      const payload: JobCreatePayload = {
         title: form.title.trim(),
         description: form.description.trim(),
-        category_id: Number(form.category_id),
+        category_slug: form.category_slug,
         experience_level: form.experience_level as ExperienceLevel,
         budget_total: form.budget_total,
+        pricing_mode: form.pricing_mode,
         deadline: form.deadline,
       }
 
@@ -485,13 +492,13 @@ export default function JobPostPage() {
 
               <div className="space-y-2">
                 <Label>Category</Label>
-                <Select value={form.category_id} onValueChange={(value) => updateField('category_id', value)}>
+                <Select value={form.category_slug} onValueChange={(value) => updateField('category_slug', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder={loadingCategories ? 'Loading categories...' : 'Choose category'} />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => {
-                      const value = String(category.id ?? category.slug ?? category.name)
+                      const value = String(category.slug ?? category.name)
                       return (
                         <SelectItem key={value} value={value}>
                           {category.name}
@@ -539,6 +546,26 @@ export default function JobPostPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
+
+            <div className="space-y-2">
+              <Label> Pricing Method </Label>
+                <Select value={form.pricing_mode} onValueChange={(value: PricingMode) => updateField('pricing_mode', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingPricingModes ? 'Loading options...' : 'Choose a pricing method'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pricingModes.map((method) => {
+                      const value = String(method)
+                      return (
+                        <SelectItem key={value} value={value}>
+                          {method}
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
+            </div>
+
             <div className="space-y-2">
               <Label>Total deal price</Label>
               <Input

@@ -272,7 +272,7 @@ export default function ContractsPage() {
               contract={contract}
               viewerRole={(contract.viewer_role ?? viewerRole) as ContractViewerRole}
               actionBusy={actionBusyPublicId === contract.first_pending_milestone_public_id}
-              onOpenDetails={(publicId) => router.push(ROUTES.dashboard.contracts.contractDetail(publicId))}
+              onOpenDetails={(publicId) => router.push(ROUTES.dashboard.contracts.detail(publicId))}
               onFundMilestone={fundMilestone}
               onRetryFunding={retryFunding}
               onReview={(publicId) => {

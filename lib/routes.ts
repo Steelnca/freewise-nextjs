@@ -14,16 +14,22 @@ export const ROUTES = {
     root: "/dashboard",
     jobs: {
       root: "/dashboard/jobs",
-      jobPost: "/dashboard/jobs/post",
-      jobDetail: (publicId: string) => `/dashboard/jobs/${publicId}`,
-      jobEdit: (publicId: string) => `/dashboard/jobs/${publicId}/edit`,
-      jobProposals: (publicId: string) => `/dashboard/jobs/${publicId}/proposals`,
+      post: "/dashboard/jobs/post",
+      detail: (publicId: string) => `/dashboard/jobs/${publicId}`,
+      update: (publicId: string) => `/dashboard/jobs/${publicId}/edit`,
+      apply: (publicId: string) => `/dashboard/jobs/${publicId}/apply`,
+      applicants: (publicId: string) => `/dashboard/jobs/${publicId}/applicants`,
+      applicantsWorkspace: (publicId: string, proposalPublicId: string) => `/dashboard/jobs/${publicId}/applicants/${proposalPublicId}`,
     },
 
-    proposals: "/dashboard/proposals",
+    proposals: {
+      root: "/dashboard/proposals",
+      detail: (publicId: string) => `/dashboard/proposals/${publicId}`,
+    },
+
     contracts: {
       root: "/dashboard/contracts",
-      contractDetail: (publicId: string) => `/dashboard/contracts/${publicId}`,
+      detail: (publicId: string) => `/dashboard/contracts/${publicId}`,
     },
     services: "/dashboard/services",
     collabs: "/dashboard/collabs",

@@ -2,22 +2,23 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
 import {
-  ArrowLeft,
-  CheckCircle2,
-  ChevronRight,
-  Clock3,
-  DollarSign,
-  HandCoins,
-  ListChecks,
-  ShieldAlert,
-  Sparkles,
-  Workflow,
+  ArrowLeftIcon,
+  CheckCircle2Icon,
+  ChevronRightIcon,
+  Clock3Icon,
+  DollarSignIcon,
+  HandCoinsIcon,
+  ListChecksIcon,
+  RefreshCwIcon,
+  ShieldAlertIcon,
+  SparklesIcon,
+  WorkflowIcon,
 } from 'lucide-react'
 
-import { contracts as contractsApi, payments, proposals as proposalsApi } from '@/lib/api'
+import { contracts as contractsApi, payments, jobs as jobsApi, proposals as proposalsApi } from '@/lib/api'
 import { ROUTES } from '@/lib/routes'
 import type { Contract, Milestone, Proposal } from '@/lib/types'
 
@@ -40,7 +41,6 @@ type MilestonePlanItemLike = {
   due_date: string
   order: number
   source: 'CLIENT' | 'FREELANCER'
-  can_be_suggested?: boolean
   status?: string
 }
 
@@ -51,6 +51,8 @@ type MilestonePlanLike = {
   suggestion_enabled?: boolean
   total_amount?: string
   currency?: string
+  is_selected?: boolean
+  selected_at?: string | null
   items?: MilestonePlanItemLike[]
 }
 
@@ -60,6 +62,9 @@ type ProposalWithPlans = Proposal & {
 
 type ContractDetail = Contract & {
   proposal?: number | string | null
+  job_public_id?: string | null
+  job_title?: string | null
+  source_plan?: MilestonePlanLike | null
   milestone_mode?: 'SINGLE' | 'MULTI' | string
   split_owner?: 'CLIENT' | 'FREELANCER' | string
   collab_allowed?: boolean
@@ -77,6 +82,7 @@ type ContractDetail = Contract & {
   has_suspension?: boolean
   is_funding_locked?: boolean
   is_finished?: boolean
+  source_label?: string | null
   milestones: Milestone[]
 }
 
@@ -88,7 +94,7 @@ type DetailAction =
   | { kind: 'continue'; label: string; milestonePublicId: string }
   | { kind: 'retry'; label: string; milestonePublicId: string }
 
-const normalizeStatus = (value?: string | null) => String(value ?? '').trim().toLowerCase()
+const normalize = (value?: string | null) => String(value ?? '').trim().toLowerCase()
 
 const money = (value: string | number | undefined | null) =>
   Number(value || 0).toLocaleString('fr-DZ')
@@ -103,13 +109,18 @@ const openPaymentStatuses = new Set([
 ])
 
 const retryablePaymentStatuses = new Set(['failed', 'canceled', 'cancelled', 'expired'])
-
 const contractFinishedStatuses = new Set(['completed', 'cancelled', 'withdrawn', 'abandoned'])
-
-const milestoneOrderingLockedStatuses = new Set(['funded', 'submitted', 'revision_requested', 'disputed', 'released', 'refunded'])
+const milestoneOrderingLockedStatuses = new Set([
+  'funded',
+  'submitted',
+  'revision_requested',
+  'disputed',
+  'released',
+  'refunded',
+])
 
 function contractStatusTone(status: string) {
-  switch (normalizeStatus(status)) {
+  switch (normalize(status)) {
     case 'draft':
       return 'bg-zinc-100 text-zinc-700'
     case 'pending_funding':
@@ -132,21 +143,19 @@ function contractStatusTone(status: string) {
 }
 
 function milestoneModeLabel(mode?: string | null) {
-  const normalized = normalizeStatus(mode)
-  return normalized === 'multi' ? 'Multi milestone' : 'Single milestone'
+  return normalize(mode) === 'multi' ? 'Multi milestone' : 'Single milestone'
 }
 
 function splitOwnerLabel(owner?: string | null) {
-  const normalized = normalizeStatus(owner)
-  return normalized === 'freelancer' ? 'Freelancer split' : 'Client split'
+  return normalize(owner) === 'freelancer' ? 'Freelancer split' : 'Client split'
 }
 
 function milestoneStatusCounts(milestones: Milestone[]) {
   return milestones.reduce(
     (acc, milestone) => {
-      const status = normalizeStatus(milestone.status)
-      if (status in acc) {
-        ;(acc as any)[status] += 1
+      const key = normalize(milestone.status)
+      if (key in acc) {
+        ;(acc as any)[key] += 1
       }
       return acc
     },
@@ -165,18 +174,19 @@ function milestoneStatusCounts(milestones: Milestone[]) {
 
 function getCurrentMilestone(milestones: Milestone[]) {
   return (
-    milestones.find((m) => normalizeStatus(m.status) === 'submitted') ||
-    milestones.find((m) => normalizeStatus(m.status) === 'revision_requested') ||
-    milestones.find((m) => normalizeStatus(m.status) === 'funded') ||
-    milestones.find((m) => normalizeStatus(m.status) === 'pending') ||
+    milestones.find((m) => normalize(m.status) === 'submitted') ||
+    milestones.find((m) => normalize(m.status) === 'revision_requested') ||
+    milestones.find((m) => normalize(m.status) === 'disputed') ||
+    milestones.find((m) => normalize(m.status) === 'funded') ||
+    milestones.find((m) => normalize(m.status) === 'pending') ||
     milestones[0] ||
     null
   )
 }
 
 function getWorkflowStage(contract: ContractDetail, currentMilestone: Milestone | null) {
-  const status = normalizeStatus(contract.status)
-  const current = normalizeStatus(currentMilestone?.status)
+  const status = normalize(contract.status)
+  const current = normalize(currentMilestone?.status)
 
   if (contractFinishedStatuses.has(status)) return 'done'
   if (status === 'suspended' || contract.has_suspension) return 'resolve'
@@ -213,7 +223,6 @@ function describeAction(action: DetailAction | null) {
 export default function ContractDetailPage() {
   const params = useParams<{ publicId?: string }>()
   const contractPublicId = String(params?.publicId ?? '')
-  const router = useRouter()
   const planEditorRef = useRef<HTMLDivElement | null>(null)
 
   const [loading, setLoading] = useState(true)
@@ -235,10 +244,10 @@ export default function ContractDetailPage() {
       let proposal: ProposalWithPlans | null = null
       if (contractData.job_public_id) {
         try {
-          const proposalsRes = await proposalsApi.forJob(String(contractData.job_public_id))
+          const proposalsRes = await jobsApi.proposals(String(contractData.job_public_id))
           proposal =
             (proposalsRes.data as ProposalWithPlans[]).find(
-              (item) => normalizeStatus(item.status) === 'accepted',
+              (item) => normalize(item.status) === 'shortlisted' || normalize(item.status) === 'contracted',
             ) ?? null
         } catch {
           proposal = null
@@ -274,17 +283,13 @@ export default function ContractDetailPage() {
   const counts = milestoneStatusCounts(milestones)
 
   const firstPendingMilestone = useMemo(
-    () => milestones.find((m) => normalizeStatus(m.status) === 'pending') ?? null,
-    [milestones],
-  )
-  const firstFundedMilestone = useMemo(
-    () => milestones.find((m) => normalizeStatus(m.status) === 'funded') ?? null,
+    () => milestones.find((m) => normalize(m.status) === 'pending') ?? null,
     [milestones],
   )
 
   const isOrderingLocked =
     contract?.is_finished ||
-    milestones.some((milestone) => milestoneOrderingLockedStatuses.has(normalizeStatus(milestone.status))) ||
+    milestones.some((milestone) => milestoneOrderingLockedStatuses.has(normalize(milestone.status))) ||
     false
 
   const planLockedReason = isOrderingLocked
@@ -292,12 +297,12 @@ export default function ContractDetailPage() {
     : undefined
 
   const proposalPublicId = acceptedProposal?.public_id ?? null
-  const initialPlan = acceptedProposal?.milestone_plans?.[0] ?? null
+  const initialPlan = acceptedProposal?.milestone_plans?.[0] ?? contract?.source_plan ?? null
 
   const currentAction = useMemo<DetailAction | null>(() => {
     if (!contract) return null
 
-    const status = normalizeStatus(contract.status)
+    const status = normalize(contract.status)
     const finished = contractFinishedStatuses.has(status)
 
     if (finished) return { kind: 'none', label: 'Contract is finished.' }
@@ -306,7 +311,7 @@ export default function ContractDetailPage() {
     }
 
     if (!proposalPublicId) {
-      return { kind: 'none', label: 'No accepted proposal was found yet.' }
+      return { kind: 'none', label: 'No shortlisted proposal was found yet.' }
     }
 
     if (isClientParty && status === 'pending_funding') {
@@ -315,7 +320,7 @@ export default function ContractDetailPage() {
       }
 
       if (firstPendingMilestone) {
-        const latest = normalizeStatus(firstPendingMilestone.latest_payment_attempt_internal_status)
+        const latest = normalize(firstPendingMilestone.latest_payment_attempt_internal_status)
         if (retryablePaymentStatuses.has(latest)) {
           return {
             kind: 'retry',
@@ -343,7 +348,7 @@ export default function ContractDetailPage() {
     const target = currentMilestone
 
     if (isClientParty && target) {
-      const targetStatus = normalizeStatus(target.status)
+      const targetStatus = normalize(target.status)
       if (targetStatus === 'submitted') {
         return {
           kind: 'scroll-milestone',
@@ -361,7 +366,7 @@ export default function ContractDetailPage() {
     }
 
     if (isFreelancerParty && target) {
-      const targetStatus = normalizeStatus(target.status)
+      const targetStatus = normalize(target.status)
       if (targetStatus === 'funded') {
         return {
           kind: 'scroll-milestone',
@@ -483,8 +488,7 @@ export default function ContractDetailPage() {
     }
   }
 
-  const contractTitle =
-    contract?.title || contract?.job_title || contract?.source_label || `Contract #${contract?.public_id ?? ''}`
+  const contractTitle = contract?.title || contract?.job_title || contract?.source_label || `Contract #${contract?.public_id ?? ''}`
 
   if (loading) {
     return (
@@ -530,7 +534,7 @@ export default function ContractDetailPage() {
     <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <Button asChild variant="ghost" className="-ml-3 w-fit">
         <Link href={ROUTES.dashboard.contracts.root}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeftIcon className="mr-2 h-4 w-4" />
           Back to contracts
         </Link>
       </Button>
@@ -566,9 +570,7 @@ export default function ContractDetailPage() {
 
                   <div className="rounded-2xl border bg-muted/30 px-4 py-3 text-right">
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Deadline</p>
-                    <p className="text-base font-medium">
-                      {new Date(contract.deadline).toLocaleDateString()}
-                    </p>
+                    <p className="text-base font-medium">{contract.deadline ? new Date(contract.deadline).toLocaleDateString() : '—'}</p>
                   </div>
                 </div>
               </div>
@@ -580,15 +582,11 @@ export default function ContractDetailPage() {
                 </div>
                 <div className="rounded-2xl border bg-background p-4">
                   <p className="text-xs text-muted-foreground">Working on</p>
-                  <p className="mt-1 text-lg font-semibold">
-                    {currentMilestone ? currentMilestone.title : 'Plan stage'}
-                  </p>
+                  <p className="mt-1 text-lg font-semibold">{currentMilestone ? currentMilestone.title : 'Plan stage'}</p>
                 </div>
                 <div className="rounded-2xl border bg-background p-4">
                   <p className="text-xs text-muted-foreground">Current status</p>
-                  <p className="mt-1 text-lg font-semibold capitalize">
-                    {normalizeStatus(contract.status).replaceAll('_', ' ')}
-                  </p>
+                  <p className="mt-1 text-lg font-semibold capitalize">{normalize(contract.status).replaceAll('_', ' ')}</p>
                 </div>
                 <div className="rounded-2xl border bg-background p-4">
                   <p className="text-xs text-muted-foreground">Milestones</p>
@@ -604,10 +602,10 @@ export default function ContractDetailPage() {
                   </div>
                   {currentAction ? (
                     <Button onClick={handlePrimaryAction}>
-                      {currentAction.kind === 'fund' ? <HandCoins className="mr-2 h-4 w-4" /> : null}
-                      {currentAction.kind === 'retry' ? <Sparkles className="mr-2 h-4 w-4" /> : null}
-                      {currentAction.kind === 'scroll-plan' ? <ListChecks className="mr-2 h-4 w-4" /> : null}
-                      {currentAction.kind === 'scroll-milestone' ? <ChevronRight className="mr-2 h-4 w-4" /> : null}
+                      {currentAction.kind === 'fund' ? <HandCoinsIcon className="mr-2 h-4 w-4" /> : null}
+                      {currentAction.kind === 'retry' ? <SparklesIcon className="mr-2 h-4 w-4" /> : null}
+                      {currentAction.kind === 'scroll-plan' ? <ListChecksIcon className="mr-2 h-4 w-4" /> : null}
+                      {currentAction.kind === 'scroll-milestone' ? <ChevronRightIcon className="mr-2 h-4 w-4" /> : null}
                       {currentAction.label}
                     </Button>
                   ) : null}
@@ -619,11 +617,11 @@ export default function ContractDetailPage() {
           <Card className="rounded-3xl border-border/70 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl">
-                <Workflow className="h-5 w-5" />
+                <WorkflowIcon className="h-5 w-5" />
                 Contract flow
               </CardTitle>
               <CardDescription>
-                The full contract life cycle is shown here. The milestone list stays clean; the plan editor handles ordering.
+                A compact view of the full contract lifecycle from plan to payout.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -641,8 +639,8 @@ export default function ContractDetailPage() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-medium">{step.label}</p>
-                      {step.done ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : null}
-                      {step.active ? <Clock3 className="h-4 w-4 text-primary" /> : null}
+                      {step.done ? <CheckCircle2Icon className="h-4 w-4 text-emerald-600" /> : null}
+                      {step.active ? <Clock3Icon className="h-4 w-4 text-primary" /> : null}
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">{step.hint}</p>
                   </div>
@@ -664,42 +662,38 @@ export default function ContractDetailPage() {
               <Card className="rounded-3xl border-border/70 shadow-sm">
                 <CardHeader>
                   <CardTitle>Milestone plan</CardTitle>
-                  <CardDescription>
-                    No accepted proposal was found, so the milestone plan editor is unavailable.
-                  </CardDescription>
+                  <CardDescription>No shortlisted proposal was found, so the milestone plan editor is unavailable.</CardDescription>
                 </CardHeader>
               </Card>
             )}
           </div>
 
-            <ContractMilestoneTimeline
-              milestones={milestones}
-              viewerRole={viewerRole}
-              firstPendingMilestonePublicId={contract.first_pending_milestone_public_id}
-              currentMilestonePublicId={currentMilestone?.public_id ?? null}
-              isFinished={contract.is_finished}
-              hasSuspension={contract.has_suspension}
-              busyMilestonePublicId={actionMilestonePublicId}
-              onFundMilestone={fundMilestone}
-              onRetryMilestone={retryFundMilestone}
-              onOpenSubmitDialog={(milestone) => setSubmitDialogMilestone(milestone)}
-              onOpenRevisionDialog={(milestone) => setRevisionDialogMilestone(milestone)}
-              onApproveMilestone={approveMilestone}
-              onDisputeMilestone={disputeMilestone}
-              onOpenDeliverable={openDeliverable}
-            />
+          <ContractMilestoneTimeline
+            milestones={milestones}
+            viewerRole={viewerRole}
+            firstPendingMilestonePublicId={contract.first_pending_milestone_public_id}
+            currentMilestonePublicId={currentMilestone?.public_id ?? null}
+            isFinished={contract.is_finished}
+            hasSuspension={contract.has_suspension}
+            busyMilestonePublicId={actionMilestonePublicId}
+            onFundMilestone={fundMilestone}
+            onRetryMilestone={retryFundMilestone}
+            onOpenSubmitDialog={(milestone) => setSubmitDialogMilestone(milestone)}
+            onOpenRevisionDialog={(milestone) => setRevisionDialogMilestone(milestone)}
+            onApproveMilestone={approveMilestone}
+            onDisputeMilestone={disputeMilestone}
+            onOpenDeliverable={openDeliverable}
+          />
         </div>
 
         <div className="space-y-6">
           <Card className="rounded-3xl border-border/70 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl">
-                <DollarSign className="h-5 w-5" />
+                <DollarSignIcon className="h-5 w-5" />
                 Contract summary
               </CardTitle>
-              <CardDescription>
-                Useful numbers and the current execution state.
-              </CardDescription>
+              <CardDescription>Useful numbers and the current execution state.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
@@ -712,7 +706,7 @@ export default function ContractDetailPage() {
                   <p className="mt-1 font-medium">{contract.freelancer_username}</p>
                 </div>
                 <div className="rounded-2xl border p-4">
-                  <p className="text-xs text-muted-foreground">Proposal split owner</p>
+                  <p className="text-xs text-muted-foreground">Plan owner</p>
                   <p className="mt-1 font-medium">{splitOwnerLabel(contract.split_owner)}</p>
                 </div>
                 <div className="rounded-2xl border p-4">
@@ -744,7 +738,8 @@ export default function ContractDetailPage() {
                   <>
                     <p className="mt-1 text-sm text-muted-foreground">{currentMilestone.title}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {money(currentMilestone.amount)} DZD · Due {new Date(currentMilestone.due_date).toLocaleDateString()}
+                      {money(currentMilestone.amount)} DZD · Due{' '}
+                      {currentMilestone.due_date ? new Date(currentMilestone.due_date).toLocaleDateString() : '—'}
                     </p>
                   </>
                 ) : (
@@ -759,12 +754,10 @@ export default function ContractDetailPage() {
           <Card className="rounded-3xl border-border/70 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl">
-                <ShieldAlert className="h-5 w-5" />
+                <ShieldAlertIcon className="h-5 w-5" />
                 State guide
               </CardTitle>
-              <CardDescription>
-                Contract and milestone status rules stay simple here.
-              </CardDescription>
+              <CardDescription>Contract and milestone status rules stay simple here.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <p>• The plan editor is editable until a funded milestone exists.</p>

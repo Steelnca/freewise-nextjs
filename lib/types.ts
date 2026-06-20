@@ -98,6 +98,18 @@ export type PricingMode = 'FIXED' | 'NEGOTIABLE'
 export type MilestoneMode = 'SINGLE' | 'MULTI'
 export type SplitOwner = 'CLIENT' | 'FREELANCER'
 
+export interface JobCreatePayload {
+  title: string
+  description: string
+  category_slug: string | null
+  tags?: string[]
+  experience_level: ExperienceLevel
+  pricing_mode: PricingMode
+  budget_total?: string | null
+  deadline: string | null
+  milestone_plan?: MilestonePlanDraftPayload
+}
+
 export interface Job {
   public_id: string
   client_username: string
@@ -111,31 +123,42 @@ export interface Job {
   milestone_mode: MilestoneMode
   split_owner: SplitOwner
   collab_allowed: boolean
-  budget_total: string | null
+  budget_total: string
   deadline: string | null
   status: JobStatus
   proposal_count: number
   created_at: string
   milestone_plan_preview?: MilestonePlanDraftItem[]
+  milestone_plans?: MilestonePlan[]
+  allow_milestone_suggestions: boolean
 }
 
 // ─── Proposals (bids on jobs) ─────────────────────────────────────────────────
 
-export type ProposalStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN'
+export type ProposalStatus = 'PENDING' | 'SHORTLISTED' | 'CONTRACTED' | 'REJECTED' | 'WITHDRAWN'
 
 export interface Proposal {
   public_id: string
-  job: number
+  job_public_id: string
   job_title: string
   freelancer_username: string
   freelancer_slug: string
   freelancer_rating: string
+  contract_public_id?: string
   cover_letter: string
   proposed_price: string
-  delivery_days: number
+  delivery_days?: number
   status: ProposalStatus
   milestone_plans?: MilestonePlan[]
   created_at: string
+  shortlisted_at?: string
+  contracted_at?: string
+}
+
+export interface ProposalCreatePayload {
+  cover_letter: string
+  delivery_days: number
+  proposed_price?: string
 }
 
 // ─── Services (freelancer gig listings) ──────────────────────────────────────
@@ -200,6 +223,7 @@ export type MilestonePlanItemStatus =
   | 'REJECTED'
   | 'CONVERTED'
 
+export type MilestonePlanSourceRole = 'CLIENT' | 'FREELANCER'
 export type MilestonePlanItemSource = 'CLIENT' | 'FREELANCER'
 
 export interface MilestonePlanDraftItem {
@@ -214,6 +238,8 @@ export interface MilestonePlanDraftItem {
 }
 
 export interface MilestonePlanDraftPayload {
+  job_public_id?: string,
+  proposal_public_id?: string,
   note?: string
   suggestion_enabled: boolean
   items: Omit<MilestonePlanDraftItem, 'id'>[]
@@ -246,6 +272,8 @@ export interface MilestonePlan {
   currency: string
   suggestion_enabled: boolean
   items: MilestonePlanItem[]
+  is_selected?: boolean
+  source_role: MilestonePlanSourceRole
   created_at: string
   updated_at: string
 }
@@ -259,6 +287,16 @@ export interface MilestoneSubmission {
   payload: Record<string, unknown>
   status: string
   submitted_at: string
+}
+
+export interface ContractEvent {
+  public_id: string
+  contract: string
+  event_type: string
+  title?: string
+  message?: string
+  metadata: Record<string, unknown>
+  created_at: string
 }
 
 export type ContractStatus =
@@ -511,4 +549,18 @@ export type FundMilestoneResponse = {
   attempt_status: string
   provider_status: string
   provider: string
+}
+
+export interface ApplicantWorkspaceResponse {
+  job: Job
+  proposal: Proposal
+  selected_plan: MilestonePlan | null
+  contract: Contract | null
+}
+
+export interface ProposalDecisionResponse {
+  detail: string
+  proposal_public_id: string
+  contract_public_id?: string | null
+  requires_milestone_plan?: boolean
 }
