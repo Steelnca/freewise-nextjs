@@ -30,6 +30,11 @@ import type {
   MilestoneSubmission,
   ApplicantWorkspaceResponse,
   ProposalDecisionResponse,
+  SubscriptionPlan,
+  FreelancerSubscription,
+  ClientSubscription,
+  FreelancerQuotaResponse,
+  ClientQuotaResponse,
 } from './types'
 import { ROUTES } from './routes'
 
@@ -178,9 +183,19 @@ export const jobs = {
   mine: () => api.get<Job[]>('/jobs/mine/'),
   get: (publicId: string) => api.get<Job>(`/jobs/${publicId}/`),
 
-  create: (data: JobCreatePayload) => api.post<Job>('/jobs/create/', data),
-  update: (publicId: string, data: Partial<JobCreatePayload>) => api.put<Job>(`/jobs/${publicId}/edit/`, data),
   categories: () => api.get<Category[]>('/jobs/categories/'),
+  create: (data: JobCreatePayload) =>
+    api.post<Job>('/jobs/create/', data),
+  update: (publicId: string, data: Partial<JobCreatePayload>) =>
+    api.put<Job>(`/jobs/${publicId}/edit/`, data),
+  publish: (publicId: string) =>
+    api.post<Job>(`/jobs/${publicId}/publish/`),
+  pause: (publicId: string) =>
+    api.post<Job>(`/jobs/${publicId}/pause/`),
+  close: (publicId: string) =>
+    api.post<Job>(`/jobs/${publicId}/close/`),
+  archive: (publicId: string) =>
+    api.post<Job>(`/jobs/${publicId}/archive/`),
 
   submit: (jobPublicId: string, data: { cover_letter: string; proposed_price?: string | null; delivery_days: number }) =>
     api.post<Proposal>(`/jobs/${jobPublicId}/submit/`, data),
@@ -335,6 +350,39 @@ export const notifications = {
   unreadCount: () => api.get<{ count: number }>('/notifications/unread-count/'),
   markRead: (publicId: string) => api.post(`/notifications/${publicId}/read/`),
   markAllRead: () => api.post('/notifications/read-all/'),
+}
+
+
+// Billing
+
+export const billing = {
+  plans: (role?: 'FREELANCER' | 'CLIENT') =>
+    api.get<SubscriptionPlan[]>('/billing/plans/', { params: role ? { role } : undefined }),
+
+  plan: (publicId: string) =>
+    api.get<SubscriptionPlan>(`/billing/plans/${publicId}/`),
+
+  myFreelancerSubscription: () =>
+    api.get<FreelancerSubscription>('/billing/me/freelancer-subscription/'),
+
+  myClientSubscription: () =>
+    api.get<ClientSubscription>('/billing/me/client-subscription/'),
+
+  activateFreelancerSubscription: (data: {
+    plan_public_id: string
+    auto_renew?: boolean
+    provider_name?: string
+    provider_reference?: string
+  }) => api.post<FreelancerSubscription>('/billing/me/freelancer-subscription/activate/', data),
+
+  activateClientSubscription: (data: {
+    plan_public_id: string
+    auto_renew?: boolean
+    provider_name?: string
+    provider_reference?: string
+  }) => api.post<ClientSubscription>('/billing/me/client-subscription/activate/', data),
+
+  quota: () => api.get<{ freelancer?: FreelancerQuotaResponse; client?: ClientQuotaResponse }>('/billing/me/quota/'),
 }
 
 export default api

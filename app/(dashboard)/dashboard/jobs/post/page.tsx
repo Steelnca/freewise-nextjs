@@ -42,6 +42,7 @@ type JobFormState = {
   pricing_mode: PricingMode
   budget_total: string
   deadline: string
+  publish?: boolean
 }
 
 type DraftItem = MilestonePlanDraftItem
@@ -330,6 +331,7 @@ export default function JobPostPage() {
   const [saving, setSaving] = useState(false)
   const [createPlanNow, setCreatePlanNow] = useState(false)
   const [milestonePlan, setMilestonePlan] = useState<MilestonePlanDraftPayload | null>(null)
+  const [publishJob, setPublishJob] = useState<boolean>(false)
 
   const [form, setForm] = useState<JobFormState>({
     title: '',
@@ -346,10 +348,10 @@ export default function JobPostPage() {
     setLoadingCategories(true)
 
     jobsApi
-      .categories()
-      .then((response) => {
-        if (!mounted) return
-        setCategories(response.data)
+    .categories()
+    .then((response) => {
+      if (!mounted) return
+      setCategories(response.data)
       })
       .catch(() => {
         if (!mounted) return
@@ -401,7 +403,7 @@ export default function JobPostPage() {
     return null
   }
 
-  const submit = async () => {
+  const submitJob = async (publish: boolean) => {
     const error = validate()
     if (error) {
       toast.error(error)
@@ -409,6 +411,7 @@ export default function JobPostPage() {
     }
 
     setSaving(true)
+    setPublishJob(publish)
     try {
       const payload: JobCreatePayload = {
         title: form.title.trim(),
@@ -418,6 +421,7 @@ export default function JobPostPage() {
         budget_total: form.budget_total,
         pricing_mode: form.pricing_mode,
         deadline: form.deadline,
+        publish: publish,
       }
 
       if (createPlanNow && milestonePlan) {
@@ -425,8 +429,20 @@ export default function JobPostPage() {
         payload.budget_total = derivedPlanTotal || form.budget_total
       }
 
-      await jobsApi.create(payload)
-      toast.success('Job posted successfully.')
+      const response = await jobsApi.create(payload)
+
+      const isPublished = response.data.published === true
+      const wasBlocked = response.data.publish_blocked === true
+
+      if (wasBlocked) {
+        toast.warning( response.data.detail || 'job was saved as a draft but was not published.')
+        router.replace(ROUTES.dashboard.jobs.update(response.data.public_id))
+        return
+      } else if (isPublished) {
+        toast.success( response.data.detail || 'Job published successfully.')
+      } else {
+        toast.success( response.data.detail || 'Job saved as draft successfully.')
+      }
       router.push(ROUTES.dashboard.jobs.root)
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to create job.')
@@ -654,7 +670,7 @@ export default function JobPostPage() {
               <p className="text-xs text-muted-foreground">Flow</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {createPlanNow
-                  ? 'Client plan is visible now and freelancers can respond to it.'
+                ? 'Client plan is visible now and freelancers can respond to it.'
                   : 'Freelancers can propose the split later when bidding.'}
               </p>
             </div>
@@ -688,15 +704,12 @@ export default function JobPostPage() {
         <Button variant="outline" onClick={() => router.push(ROUTES.dashboard.jobs.root)}>
           Cancel
         </Button>
-        <Button onClick={() => void submit()} disabled={saving}>
-          {saving ? (
-            'Posting...'
-          ) : (
-            <>
-              <CheckCircle2Icon className="mr-2 h-4 w-4" />
-              Post job
-            </>
-          )}
+        <Button type="button" variant="outline" onClick={() => submitJob(false)} disabled={saving}>
+          {saving ? "Saving..." : "Save draft"}
+        </Button>
+
+        <Button type="button" onClick={() => submitJob(true)} disabled={saving}>
+          {saving ? "Publishing..." : "Publish job"}
         </Button>
       </div>
     </main>

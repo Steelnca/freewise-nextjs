@@ -108,6 +108,7 @@ export interface JobCreatePayload {
   budget_total?: string | null
   deadline: string | null
   milestone_plan?: MilestonePlanDraftPayload
+  publish?: boolean
 }
 
 export interface Job {
@@ -131,6 +132,9 @@ export interface Job {
   milestone_plan_preview?: MilestonePlanDraftItem[]
   milestone_plans?: MilestonePlan[]
   allow_milestone_suggestions: boolean
+  detail?: string
+  published?: boolean
+  publish_blocked?: boolean
 }
 
 // ─── Proposals (bids on jobs) ─────────────────────────────────────────────────
@@ -563,4 +567,64 @@ export interface ProposalDecisionResponse {
   proposal_public_id: string
   contract_public_id?: string | null
   requires_milestone_plan?: boolean
+}
+
+export interface SubscriptionPlan {
+  public_id: string
+  role: 'FREELANCER' | 'CLIENT'
+  name: string
+  slug: string
+  description: string
+  price: string
+  billing_cycle: 'MONTHLY' | 'YEARLY'
+  max_open_bids: number
+  max_active_contracts: number
+  max_jobs_posted: number
+  max_active_jobs: number
+  is_active: boolean
+  is_default: boolean
+}
+
+export interface FreelancerSubscription {
+  public_id: string
+  status: 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED'
+  starts_at: string
+  ends_at: string | null
+  auto_renew: boolean
+  provider_name: string
+  provider_reference: string
+  plan: SubscriptionPlan
+}
+
+export interface ClientSubscription {
+  public_id: string
+  status: 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED'
+  starts_at: string
+  ends_at: string | null
+  auto_renew: boolean
+  provider_name: string
+  provider_reference: string
+  plan: SubscriptionPlan
+}
+
+export interface FreelancerQuotaResponse {
+  plan_name: string
+  plan_slug: string
+  open_bids: number
+  active_contracts: number
+  max_open_bids: number
+  max_active_contracts: number
+  can_create_proposal: boolean
+  can_take_contract: boolean
+}
+
+export interface ClientQuotaResponse {
+  plan_name: string
+  plan_slug: string
+  posted_jobs: number
+  active_jobs: number
+  max_jobs_posted: number
+  max_active_jobs: number
+  can_post_job: boolean
+  can_keep_active_job: boolean
 }
